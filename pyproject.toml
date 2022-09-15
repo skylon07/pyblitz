@@ -1,0 +1,10 @@
+[project]
+name = "pyblitz"
+version = "0.0.0"
+authors = [
+    {name = "skylon07"}
+]
+dependencies = [
+    "requests",
+]
+requires-python = ">=3.9"
