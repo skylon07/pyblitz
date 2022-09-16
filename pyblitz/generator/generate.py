@@ -48,9 +48,9 @@ class Endpoint(ABC):
     def url(cls):
         return # the api endpoint path from the root site
 
-class HardEndpoint(Endpoint, ABC):
+class FixedEndpoint(Endpoint, ABC):
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("HardEndpoints cannot be invoked")
+        raise RuntimeError("FixedEndpoints cannot be invoked")
 
 class VariableEndpoint(Endpoint, ABC):
     @abstractmethod
@@ -61,8 +61,8 @@ class VariableEndpoint(Endpoint, ABC):
 # as a general rule of thumb, each template should not start or
 # end with whitespace; template variables also should NOT include
 # newlines; think "if this variable wasn't here, do I want a newline?"
-_hardEndpointTemplate = """\
-class {name}(HardEndpoint):
+_fixedEndpointTemplate = """\
+class {name}(FixedEndpoint):
     @classmethod
     def _parentEndpoint(cls):
         return {parentRef}
@@ -204,9 +204,9 @@ class _EndpointWriter:
         if endpoint.isVariable:
             return self._genVariableEndpointAndChildren(endpoint)
         else:
-            return self._genHardEndpointAndChildren(endpoint)
+            return self._genFixedEndpointAndChildren(endpoint)
 
-    def _genHardEndpointAndChildren(self, endpoint: Parser.Endpoint, fromVariableEndpoint=False) -> str:
+    def _genFixedEndpointAndChildren(self, endpoint: Parser.Endpoint, fromVariableEndpoint=False) -> str:
         childClassesCode = self._indent(self._genEndpoints(endpoint.children))
 
         endpointMethodStrs = self._indent("".join(
@@ -223,7 +223,7 @@ class _EndpointWriter:
         ))
 
         if not fromVariableEndpoint:
-            return _hardEndpointTemplate.format(
+            return _fixedEndpointTemplate.format(
                 name=endpoint.className,
                 parentRef=self._absoluteParentRefStr(endpoint),
                 urlStr="'{}'".format(endpoint.getPath()),
@@ -233,7 +233,7 @@ class _EndpointWriter:
         else:
             hardenedClassName = endpoint.className + "_hardened"
             urlStr = "'{}/{{hardenedName}}'.format(hardenedName=pathValue)".format(endpoint.parent.getPath())
-            return _hardEndpointTemplate.format(
+            return _fixedEndpointTemplate.format(
                 name=hardenedClassName,
                 parentRef=self._absoluteParentRefStr(endpoint),
                 urlStr=urlStr,
@@ -242,7 +242,7 @@ class _EndpointWriter:
             )
 
     def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
-        hardenedEndpointCode = self._indent(self._genHardEndpointAndChildren(endpoint, fromVariableEndpoint=True), 2) + self._unindentClassSep
+        hardenedEndpointCode = self._indent(self._genFixedEndpointAndChildren(endpoint, fromVariableEndpoint=True), 2) + self._unindentClassSep
 
         return _variableEndpointTemplate.format(
             name=endpoint.className,
