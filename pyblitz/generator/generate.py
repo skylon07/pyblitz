@@ -46,8 +46,20 @@ class Endpoint(ABC):
         return # the reference to this class' outer Endpoint class
     
     @abstractclassmethod
+    def _urlName(cls):
+        return # the endpoint's name as it would appear in the api url path
+
+    @classmethod
     def url(cls):
-        return # the api endpoint path from the root site
+        urlNames = list(cls._urlNamesFromLeaf())
+        return "/" + "/".join(reversed(urlNames))
+
+    @classmethod
+    def _urlNamesFromLeaf(cls):
+        currEndpoint = cls
+        while currEndpoint is not None:
+            yield currEndpoint._urlName()
+            currEndpoint = currEndpoint._parentEndpoint()
 
 class FixedEndpoint(Endpoint, ABC):
     def __new__(cls, *args, **kwargs):
@@ -68,23 +80,28 @@ class {name}(FixedEndpoint):
     def _parentEndpoint(cls):
         return {parentRef}
     @classmethod
-    def url(cls):
-        return {urlStr}\
+    def _urlName(cls):
+        return {urlNameStr}\
     {methods}{childClasses}\
 """
 
+# renaming `pathValueName` allows __new__() calls to show actual argument names
+# while still being able to reference a consistent `pathValue` variable name
+# from the inner hardened class
 _variableEndpointTemplate = """\
 class {name}(VariableEndpoint):
     @classmethod
     def _parentEndpoint(cls):
         return {parentRef}
-    def __new__(cls, pathValue):
+    def __new__(cls, {pathValueName}):
+        pathValue = {pathValueName}
         {hardenedClass}\
-        return {name}_hardened\
+        return {hardenedClassName}\
     {methodSep}\
     @classmethod
-    def url(cls):
-        return {urlStr}\
+    def _urlName(cls):
+        return {urlNameStr}\
+    {methods}{childClasses}\
 """
 
 _endpointMethodTemplate_noData = """\
