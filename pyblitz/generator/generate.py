@@ -66,9 +66,13 @@ class FixedEndpoint(Endpoint, ABC):
         raise RuntimeError("FixedEndpoints cannot be invoked")
 
 class VariableEndpoint(Endpoint, ABC):
+    def __new__(cls, *args, **kwargs):
+        raise RuntimeError("VariableEndpoints cannot be invoked")
+
+class ExpressionEndpoint(Endpoint, ABC):
     @abstractmethod
     def __new__(cls, pathValue):
-        return # an Endpoint class hardened with the pathValue
+        return # a VariableEndpoint class
 """
 
 # as a general rule of thumb, each template should not start or
@@ -85,11 +89,22 @@ class {name}(FixedEndpoint):
     {methods}{childClasses}\
 """
 
-# renaming `pathValueName` allows __new__() calls to show actual argument names
-# while still being able to reference a consistent `pathValue` variable name
-# from the inner hardened class
 _variableEndpointTemplate = """\
 class {name}(VariableEndpoint):
+    @classmethod
+    def _parentEndpoint(cls):
+        return {parentRef}
+    @classmethod
+    def _urlName(cls):
+        return str(pathValue)\
+    {methods}{childClasses}\
+"""
+
+# renaming `pathValueName` allows __new__() calls to show actual argument names
+# while still being able to reference a consistent `pathValue` variable name
+# from the inner VariableEndpoint class
+_expressionEndpointTemplate = """\
+class {name}(ExpressionEndpoint):
     @classmethod
     def _parentEndpoint(cls):
         return {parentRef}
@@ -219,12 +234,12 @@ class _EndpointWriter:
         )
 
     def _genEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
-        if self._isVaraibleEndpoint(endpoint):
-            return self._genVariableEndpointAndChildren(endpoint)
+        if self._isExpressionEndpoint(endpoint):
+            return self._genExpressionEndpointAndChildren(endpoint)
         else:
             return self._genFixedEndpointAndChildren(endpoint)
 
-    def _genFixedEndpointAndChildren(self, endpoint: Parser.Endpoint, fromVariableEndpoint=False) -> str:
+    def _genFixedEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
         childClassesCode = self._indent(self._genEndpoints(endpoint.children))
 
         endpointMethodStrs = self._indent("".join(
@@ -240,39 +255,30 @@ class _EndpointWriter:
             )]
         ))
 
-        parentRef = self._genFixedParentAncestryStrFromRoot(endpoint)
+        parentRef = self._genParentsFromExprAncestorStr(endpoint)
 
-        if not fromVariableEndpoint:
-            return _fixedEndpointTemplate.format(
-                name=endpoint.className,
-                parentRef=parentRef,
-                urlNameStr="'{}'".format(endpoint.pathName),
-                methods=endpointMethodStrs,
-                childClasses=childClassesCode,
-            )
-        else:
-            return _fixedEndpointTemplate.format(
-                name=endpoint.className,
-                parentRef=parentRef,
-                urlNameStr="str(pathValue)",
-                methods=endpointMethodStrs,
-                childClasses=childClassesCode,
-            )
+        return _fixedEndpointTemplate.format(
+            name=endpoint.className,
+            parentRef=parentRef,
+            urlNameStr="'{}'".format(endpoint.pathName),
+            methods=endpointMethodStrs,
+            childClasses=childClassesCode,
+        )
 
-    def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
-        fixedChildren = list(endpoint.children)
-        varEndpointChildren = [child for child in fixedChildren if self._isParentVariableEndpoint(child)]
+    def _genExpressionEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
+        nonVarChildEndpoints = list(endpoint.children)
+        varEndpointChildren = [child for child in nonVarChildEndpoints if self._isVariableEndpoint(child)]
         assert len(varEndpointChildren) == 1
         varEndpointChild = varEndpointChildren[0]
-        fixedChildren.pop(fixedChildren.index(varEndpointChild))
+        nonVarChildEndpoints.pop(nonVarChildEndpoints.index(varEndpointChild))
 
-        hardenedEndpointCode = self._indent(self._genFixedEndpointAndChildren(varEndpointChild, fromVariableEndpoint=True), 2) + self._unindentClassSep
-        hardenedEndpointName = re.findall("class ([^()]*)(\(.*\))?:", hardenedEndpointCode)[0][0]
+        varEndpointCode = self._indent(self._genVariableEndpointAndChildren(varEndpointChild), 2) + self._unindentClassSep
+        varEndpointName = re.findall("class ([^()]*)(\(.*\))?:", varEndpointCode)[0][0]
 
-        parentRef = self._genFixedParentAncestryStrFromRoot(endpoint)
+        parentRef = self._genParentsFromExprAncestorStr(endpoint)
 
         # TODO: this code is copied; probably should be shared somehow
-        childClassesCode = self._indent(self._genEndpoints(fixedChildren))
+        childClassesCode = self._indent(self._genEndpoints(nonVarChildEndpoints))
 
         endpointMethodStrs = self._indent("".join(
             self._methodSep + methodStr
@@ -287,14 +293,39 @@ class _EndpointWriter:
             )]
         ))
 
-        return _variableEndpointTemplate.format(
+        return _expressionEndpointTemplate.format(
             name=endpoint.className,
             parentRef=parentRef,
             urlNameStr="'{}'".format(endpoint.pathName),
-            pathValueName=hardenedEndpointName,
-            hardenedClass=hardenedEndpointCode,
-            hardenedClassName=hardenedEndpointName,
+            pathValueName=varEndpointName,
+            hardenedClass=varEndpointCode,
+            hardenedClassName=varEndpointName,
             methodSep=self._methodSep,
+            methods=endpointMethodStrs,
+            childClasses=childClassesCode,
+        )
+
+    def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
+        childClassesCode = self._indent(self._genEndpoints(endpoint.children))
+
+        endpointMethodStrs = self._indent("".join(
+            self._methodSep + methodStr
+            for method in endpoint.methods
+            for methodTemplate in [
+                _endpointMethodTemplate_noData if method.name in ("get", "delete")
+                else _endpointMethodTemplate_full
+            ]
+            for methodStr in [methodTemplate.format(
+                method=method.name.upper(),
+                desc=method.desc,
+            )]
+        ))
+
+        parentRef = self._genParentsFromExprAncestorStr(endpoint)
+
+        return _variableEndpointTemplate.format(
+            name=endpoint.className,
+            parentRef=parentRef,
             methods=endpointMethodStrs,
             childClasses=childClassesCode,
         )
@@ -335,25 +366,25 @@ class _EndpointWriter:
     def _indent(self, code: str, indentLevel: int=1) -> str:
         return code.replace("\n", "\n" + self._indentStr * indentLevel)
 
-    def _isVaraibleEndpoint(self, endpoint: Parser.Endpoint) -> bool:
+    def _isExpressionEndpoint(self, endpoint: Parser.Endpoint) -> bool:
         for child in endpoint.children:
-            if self._isParentVariableEndpoint(child):
+            if self._isVariableEndpoint(child):
                 return True
         return False
 
-    def _isParentVariableEndpoint(self, childEndpoint: Parser.Endpoint) -> bool:
+    def _isVariableEndpoint(self, childEndpoint: Parser.Endpoint) -> bool:
         return (childEndpoint.pathName[0], childEndpoint.pathName[-1]) == ("{", "}")
     
-    def _genFixedParentAncestryFromLeaf(self, endpoint: Parser.Endpoint) -> Iterable[Parser.Endpoint]:
+    def _parentsUpToExprEndpoint(self, endpoint: Parser.Endpoint) -> Iterable[Parser.Endpoint]:
         currEndpoint = endpoint.parent
-        isCurrEndpointVariable = False # even if it is, we want to yield the first reference regardless
-        while currEndpoint is not None and not isCurrEndpointVariable:
+        currIsExprEndpoint = False # even if it is; we want to yield immediate expr endpoint parents for var endpoints
+        while currEndpoint is not None and not currIsExprEndpoint:
             yield currEndpoint
-            isCurrEndpointVariable = self._isParentVariableEndpoint(currEndpoint)
+            currIsExprEndpoint = self._isVariableEndpoint(currEndpoint)
             currEndpoint = currEndpoint.parent
 
-    def _genFixedParentAncestryStrFromRoot(self, endpoint: Parser.Endpoint) -> str:
-        ancestry = ".".join(parent.className for parent in reversed(list(self._genFixedParentAncestryFromLeaf(endpoint))))
+    def _genParentsFromExprAncestorStr(self, endpoint: Parser.Endpoint) -> str:
+        ancestry = ".".join(parent.className for parent in reversed(list(self._parentsUpToExprEndpoint(endpoint))))
         if ancestry == "":
             ancestry = "None"
         return ancestry
