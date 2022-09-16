@@ -1,12 +1,23 @@
 from abc import ABC, abstractmethod
 from typing import Iterable
 
+from ..common import _convertDashesToCamelCase
+
 
 class ParseError(Exception):
     pass # class intentionally left blank
 
 
 class Parser(ABC):
+    """The base class for all Parsers, providing common functionality and data classes
+    
+    A Parser instance's main use is to `parse(jsonDict)` a dictionary generated from json.
+    Once parsed, the Parser instance provides several properties:
+    - servers -- a list of found Parser.Servers
+    - endpoints -- a list of found Parser.Endpoints
+    - schema -- a list of found Parser.Schema
+    """
+    
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls, *args, **kwargs)
         self.__init_called = False
@@ -99,12 +110,13 @@ class Parser(ABC):
     class Endpoint:
         """A data class representing Endpoint data for the parser"""
 
-        def __init__(self, name: str, parent: 'Parser.Endpoint'=None):
-            assert type(name) is str
+        def __init__(self, pathName: str, parent: 'Parser.Endpoint'=None):
+            assert type(pathName) is str
             if parent is not None:
                 assert type(parent) is Parser.Endpoint
             
-            self._name = name
+            self._pathName = pathName
+            self._className = None
             self._parent = None
             self._lastParentOnPathCheck = None
             self._methodsDict = dict()
@@ -118,8 +130,16 @@ class Parser(ABC):
             return "<Parser.Endpoint {}>".format(self.getPath())
 
         @property
-        def name(self) -> str:
-            return self._name
+        def pathName(self) -> str:
+            return self._pathName
+
+        @property
+        def className(self) -> str:
+            if self._className is None:
+                nameNoBraces = self._pathName[1:-1] if self._pathName[0] == "{" else self._pathName
+                casedName = _convertDashesToCamelCase(nameNoBraces)
+                self._className = casedName
+            return self._className
 
         @property
         def parent(self) -> 'Parser.Endpoint':
@@ -128,7 +148,7 @@ class Parser(ABC):
         def getPath(self) -> str:
             if self._path is None or self._lastParentOnPathCheck is not self._parent:
                 parentPath = self._parent.getPath() if self._parent is not None else ""
-                self._path = parentPath + "/" + self._name
+                self._path = parentPath + "/" + self._pathName
                 self._lastParentOnPathCheck = self._parent
             return self._path
 
@@ -141,7 +161,7 @@ class Parser(ABC):
         def addChild(self, childEndpoint: 'Parser.Endpoint') -> None:
             assert type(childEndpoint) is Parser.Endpoint
             childEndpoint._parent = self
-            self._childrenDict[childEndpoint.name] = childEndpoint
+            self._childrenDict[childEndpoint.pathName] = childEndpoint
 
         def hasChild(self, childEndpointName: str) -> bool:
             return childEndpointName in self._childrenDict
