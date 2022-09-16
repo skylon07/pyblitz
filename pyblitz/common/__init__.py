@@ -1,10 +1,10 @@
-def convertDashesToCamelCase(string: str):
+def _convertDashesToCamelCase(string: str):
     strList = string.split("-")
     firstStr = strList.pop(0)
     return firstStr + "".join(
-        capitalize(strAfterDash)
+        _capitalize(strAfterDash)
         for strAfterDash in strList
     )
 
-def capitalize(string: str):
+def _capitalize(string: str):
     return string[0].upper() + string[1:]

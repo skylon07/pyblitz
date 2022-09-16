@@ -1,5 +1,4 @@
 from . import generator
-del generator.createFileFromRoot
 from . import http
 
 try: 

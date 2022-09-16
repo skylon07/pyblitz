@@ -1,17 +1,19 @@
 import re
 from typing import Iterable
 
-from .files import readOpenAPIFile, createFileFromRoot
+from .files import _readOpenAPIFile, _createFileFromRoot
 from .parser import Parser
 
-def generateAPI(ParserClass, fileLocation):
-    assert issubclass(ParserClass, Parser)
+def generateAPI(ParserClass: Parser, openApiFileLocation: str):
+    """Generates the api.py file given a parser and API spec-file location"""
+    if not issubclass(ParserClass, Parser):
+        raise TypeError("generateAPI() requires ParserClass to be a reference to some subclass of Parser, specifically the Parser for the version of spec-file you're using")
     
-    jsonDict = readOpenAPIFile(fileLocation)
+    jsonDict = _readOpenAPIFile(openApiFileLocation)
 
     parser = ParserClass()
     parser.parse(jsonDict)
-    with createFileFromRoot("api.py") as apiFile:
+    with _createFileFromRoot("api.py") as apiFile:
         writer = _EndpointWriter(apiFile)
         writer.writeServers(parser.servers)
         writer.writeEndpoints(parser.endpoints)
@@ -196,6 +198,17 @@ self.{name} = Schema.NoProp
 
 
 class _EndpointWriter:
+    """Converts all Parser.Endpoints to classes (via string templates) and writes them to an api.py file
+    
+    Construct with a file (or anything with a .write() method), then write in any order:
+    ```
+        writer = _EndpointWriter(file)
+        writer.writeServers(parser.servers)
+        writer.writeEndpoints(parser.endpoints)
+        writer.writeSchema(parser.schema)
+    ```
+    """
+
     # what "one indent" means; if you change this, make sure to change
     # the templates too
     _indentStr = "    "
@@ -210,7 +223,7 @@ class _EndpointWriter:
         self._file = file
         self._file.write(_imports)
 
-    def writeServers(self, servers):
+    def writeServers(self, servers: Iterable[Parser.Server]):
         registerFnsCode = "\n".join(
             serverRegisterCode
             for server in servers
@@ -218,11 +231,11 @@ class _EndpointWriter:
         )
         self._file.write(registerFnsCode + self._classSep)
 
-    def writeEndpoints(self, rootEndpoints):
+    def writeEndpoints(self, rootEndpoints: Iterable[Parser.Endpoint]):
         self._file.write(_endpointGlobals)
         self._file.write(self._genEndpoints(rootEndpoints) + self._classSep)
 
-    def writeSchema(self, schema):
+    def writeSchema(self, schema: Iterable[Parser.Schema]):
         self._file.write(_schemaGlobals)
         self._file.write(self._genSchema(schema) + self._classSep)
 

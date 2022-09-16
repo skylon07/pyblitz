@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Iterable
 
-from ..common import convertDashesToCamelCase
+from ..common import _convertDashesToCamelCase
 
 
 class ParseError(Exception):
@@ -9,6 +9,15 @@ class ParseError(Exception):
 
 
 class Parser(ABC):
+    """The base class for all Parsers, providing common functionality and data classes
+    
+    A Parser instance's main use is to `parse(jsonDict)` a dictionary generated from json.
+    Once parsed, the Parser instance provides several properties:
+    - servers -- a list of found Parser.Servers
+    - endpoints -- a list of found Parser.Endpoints
+    - schema -- a list of found Parser.Schema
+    """
+    
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls, *args, **kwargs)
         self.__init_called = False
@@ -128,7 +137,7 @@ class Parser(ABC):
         def className(self) -> str:
             if self._className is None:
                 nameNoBraces = self._pathName[1:-1] if self._pathName[0] == "{" else self._pathName
-                casedName = convertDashesToCamelCase(nameNoBraces)
+                casedName = _convertDashesToCamelCase(nameNoBraces)
                 self._className = casedName
             return self._className
 

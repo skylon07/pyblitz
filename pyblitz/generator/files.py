@@ -10,13 +10,17 @@ _moduleInitPath = sys.modules['pyblitz'].__file__
 _moduleRootPath = os.path.normpath(os.path.join(_moduleInitPath, ".."))
 
 
-def readOpenAPIFile(pathToJson):
+def _readOpenAPIFile(pathToJson):
+    """Given the path to a json file, this converts it into a python `dict`"""
     with open(pathToJson) as jsonFile:
         jsonDict = json.load(jsonFile)
     return jsonDict
 
 
-def createFileFromRoot(filePath):
+# TODO: convert to function that creates from env root (or arbitrary file locations;
+#       aka just open() the filePath)
+def _createFileFromRoot(filePath):
+    """This function creates a file relative to the root of the pyblitz package"""
     if filePath[0] == "/":
         # prevents os.path.join treating this as an absolute path
         filePath = filePath[1:]
