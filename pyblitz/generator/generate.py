@@ -1,3 +1,4 @@
+import re
 from typing import Iterable
 
 from .files import readOpenAPIFile, createFileFromRoot
@@ -201,7 +202,7 @@ class _EndpointWriter:
         )
 
     def _genEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
-        if endpoint.isVariable:
+        if self._isVaraibleEndpoint(endpoint):
             return self._genVariableEndpointAndChildren(endpoint)
         else:
             return self._genFixedEndpointAndChildren(endpoint)
@@ -222,34 +223,63 @@ class _EndpointWriter:
             )]
         ))
 
+        parentRef = self._genFixedParentAncestryStrFromRoot(endpoint)
+
         if not fromVariableEndpoint:
             return _fixedEndpointTemplate.format(
                 name=endpoint.className,
-                parentRef=self._absoluteParentRefStr(endpoint),
-                urlStr="'{}'".format(endpoint.getPath()),
+                parentRef=parentRef,
+                urlNameStr="'{}'".format(endpoint.pathName),
                 methods=endpointMethodStrs,
                 childClasses=childClassesCode,
             )
         else:
-            hardenedClassName = endpoint.className + "_hardened"
-            urlStr = "'{}/{{hardenedName}}'.format(hardenedName=pathValue)".format(endpoint.parent.getPath())
             return _fixedEndpointTemplate.format(
-                name=hardenedClassName,
-                parentRef=self._absoluteParentRefStr(endpoint),
-                urlStr=urlStr,
+                name=endpoint.className,
+                parentRef=parentRef,
+                urlNameStr="str(pathValue)",
                 methods=endpointMethodStrs,
                 childClasses=childClassesCode,
             )
 
     def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
-        hardenedEndpointCode = self._indent(self._genFixedEndpointAndChildren(endpoint, fromVariableEndpoint=True), 2) + self._unindentClassSep
+        fixedChildren = list(endpoint.children)
+        varEndpointChildren = [child for child in fixedChildren if self._isParentVariableEndpoint(child)]
+        assert len(varEndpointChildren) == 1
+        varEndpointChild = varEndpointChildren[0]
+        fixedChildren.pop(fixedChildren.index(varEndpointChild))
+
+        hardenedEndpointCode = self._indent(self._genFixedEndpointAndChildren(varEndpointChild, fromVariableEndpoint=True), 2) + self._unindentClassSep
+        hardenedEndpointName = re.findall("class ([^()]*)(\(.*\))?:", hardenedEndpointCode)[0][0]
+
+        parentRef = self._genFixedParentAncestryStrFromRoot(endpoint)
+
+        # TODO: this code is copied; probably should be shared somehow
+        childClassesCode = self._indent(self._genEndpoints(fixedChildren))
+
+        endpointMethodStrs = self._indent("".join(
+            self._methodSep + methodStr
+            for method in endpoint.methods
+            for methodTemplate in [
+                _endpointMethodTemplate_noData if method.name in ("get", "delete")
+                else _endpointMethodTemplate_full
+            ]
+            for methodStr in [methodTemplate.format(
+                method=method.name.upper(),
+                desc=method.desc,
+            )]
+        ))
 
         return _variableEndpointTemplate.format(
             name=endpoint.className,
-            parentRef=self._absoluteParentRefStr(endpoint),
-            urlStr="'{}'".format(endpoint.getPath()),
+            parentRef=parentRef,
+            urlNameStr="'{}'".format(endpoint.pathName),
+            pathValueName=hardenedEndpointName,
             hardenedClass=hardenedEndpointCode,
+            hardenedClassName=hardenedEndpointName,
             methodSep=self._methodSep,
+            methods=endpointMethodStrs,
+            childClasses=childClassesCode,
         )
 
     def _genSchema(self, schema: Iterable[Parser.Schema]) -> str:
@@ -288,20 +318,25 @@ class _EndpointWriter:
     def _indent(self, code: str, indentLevel: int=1) -> str:
         return code.replace("\n", "\n" + self._indentStr * indentLevel)
 
-    def _absoluteParentRefStr(self, endpoint: Parser.Endpoint) -> str:
-        currEndpoint = endpoint
-        parentRefStr = ""
-        while currEndpoint is not None:
+    def _isVaraibleEndpoint(self, endpoint: Parser.Endpoint) -> bool:
+        for child in endpoint.children:
+            if self._isParentVariableEndpoint(child):
+                return True
+        return False
+
+    def _isParentVariableEndpoint(self, childEndpoint: Parser.Endpoint) -> bool:
+        return (childEndpoint.pathName[0], childEndpoint.pathName[-1]) == ("{", "}")
+    
+    def _genFixedParentAncestryFromLeaf(self, endpoint: Parser.Endpoint) -> Iterable[Parser.Endpoint]:
+        currEndpoint = endpoint.parent
+        isCurrEndpointVariable = False # even if it is, we want to yield the first reference regardless
+        while currEndpoint is not None and not isCurrEndpointVariable:
+            yield currEndpoint
+            isCurrEndpointVariable = self._isParentVariableEndpoint(currEndpoint)
             currEndpoint = currEndpoint.parent
 
-            if parentRefStr != "":
-                if currEndpoint is not None:
-                    parentRefStr = "{}.{}".format(currEndpoint.className, parentRefStr)
-                else:
-                    pass # we don't want to add "None." to the string
-            else:
-                if currEndpoint is not None:
-                    parentRefStr = currEndpoint.className
-                else:
-                    parentRefStr = "None"
-        return parentRefStr
+    def _genFixedParentAncestryStrFromRoot(self, endpoint: Parser.Endpoint) -> str:
+        ancestry = ".".join(parent.className for parent in reversed(list(self._genFixedParentAncestryFromLeaf(endpoint))))
+        if ancestry == "":
+            ancestry = "None"
+        return ancestry
