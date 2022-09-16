@@ -1,6 +1,5 @@
 from typing import Iterable
 
-from ..common import convertDashesToCamelCase
 from .files import readOpenAPIFile, createFileFromRoot
 from .parser import Parser
 
@@ -40,9 +39,13 @@ class Endpoint(ABC):
     @abstractmethod
     def __new__(cls, *args, **kwargs):
         return # an Endpoint subclass
+
+    @abstractclassmethod
+    def _parentEndpoint(cls):
+        return # the reference to this class' outer Endpoint class
     
     @abstractclassmethod
-    def url(self):
+    def url(cls):
         return # the api endpoint path from the root site
 
 class HardEndpoint(Endpoint, ABC):
@@ -61,6 +64,9 @@ class VariableEndpoint(Endpoint, ABC):
 _hardEndpointTemplate = """\
 class {name}(HardEndpoint):
     @classmethod
+    def _parentEndpoint(cls):
+        return {parentRef}
+    @classmethod
     def url(cls):
         return {urlStr}\
     {methods}{childClasses}\
@@ -68,6 +74,9 @@ class {name}(HardEndpoint):
 
 _variableEndpointTemplate = """\
 class {name}(VariableEndpoint):
+    @classmethod
+    def _parentEndpoint(cls):
+        return {parentRef}
     def __new__(cls, pathValue):
         {hardenedClass}\
         return {name}_hardened\
@@ -184,21 +193,20 @@ class _EndpointWriter:
         self._file.write(_schemaGlobals)
         self._file.write(self._genSchema(schema) + self._classSep)
 
-    def _genEndpoints(self, endpoints: Iterable[Parser.Endpoint]):
+    def _genEndpoints(self, endpoints: Iterable[Parser.Endpoint]) -> str:
         return "".join(
             self._classSep + endpointCode
             for endpoint in endpoints
             for endpointCode in [self._genEndpointAndChildren(endpoint)]
         )
 
-    def _genEndpointAndChildren(self, endpoint: Parser.Endpoint):
-        isVariableEndpoint = (endpoint.name[0], endpoint.name[-1]) == ("{", "}")
-        if isVariableEndpoint:
+    def _genEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
+        if endpoint.isVariable:
             return self._genVariableEndpointAndChildren(endpoint)
         else:
             return self._genHardEndpointAndChildren(endpoint)
 
-    def _genHardEndpointAndChildren(self, endpoint: Parser.Endpoint, fromVariableEndpoint=False):
+    def _genHardEndpointAndChildren(self, endpoint: Parser.Endpoint, fromVariableEndpoint=False) -> str:
         childClassesCode = self._indent(self._genEndpoints(endpoint.children))
 
         endpointMethodStrs = self._indent("".join(
@@ -216,42 +224,42 @@ class _EndpointWriter:
 
         if not fromVariableEndpoint:
             return _hardEndpointTemplate.format(
-                name=convertDashesToCamelCase(endpoint.name),
+                name=endpoint.className,
+                parentRef=self._absoluteParentRefStr(endpoint),
                 urlStr="'{}'".format(endpoint.getPath()),
                 methods=endpointMethodStrs,
                 childClasses=childClassesCode,
             )
         else:
-            strippedEndpointName = endpoint.name[1:-1] # without '{' or '}'
-            hardenedClassName = strippedEndpointName + "_hardened"
+            hardenedClassName = endpoint.className + "_hardened"
             urlStr = "'{}/{{hardenedName}}'.format(hardenedName=pathValue)".format(endpoint.parent.getPath())
             return _hardEndpointTemplate.format(
-                name=convertDashesToCamelCase(hardenedClassName),
+                name=hardenedClassName,
+                parentRef=self._absoluteParentRefStr(endpoint),
                 urlStr=urlStr,
                 methods=endpointMethodStrs,
                 childClasses=childClassesCode,
             )
 
-    def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint):
-        strippedEndpointName = endpoint.name[1:-1] # without '{' or '}'
-
+    def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
         hardenedEndpointCode = self._indent(self._genHardEndpointAndChildren(endpoint, fromVariableEndpoint=True), 2) + self._unindentClassSep
 
         return _variableEndpointTemplate.format(
-            name=strippedEndpointName,
+            name=endpoint.className,
+            parentRef=self._absoluteParentRefStr(endpoint),
             urlStr="'{}'".format(endpoint.getPath()),
             hardenedClass=hardenedEndpointCode,
             methodSep=self._methodSep,
         )
 
-    def _genSchema(self, schema: Iterable[Parser.Schema]):
+    def _genSchema(self, schema: Iterable[Parser.Schema]) -> str:
         return "".join(
             self._classSep + schemaCode
             for model in schema
             for schemaCode in [self._genSchemaModel(model)]
         )
 
-    def _genSchemaModel(self, model: Parser.Schema):
+    def _genSchemaModel(self, model: Parser.Schema) -> str:
         propDefsStr = self._indent("\n".join(
             propCode
             for prop in model.props
@@ -271,11 +279,29 @@ class _EndpointWriter:
             methodSep=self._methodSep,
         )
 
-    def _genProp(self, prop: Parser.SchemaProperty):
+    def _genProp(self, prop: Parser.SchemaProperty) -> str:
         return _propTemplate.format(
             name=prop.name,
             desc=prop.desc,
         )
 
-    def _indent(self, code: str, indentLevel: int=1):
+    def _indent(self, code: str, indentLevel: int=1) -> str:
         return code.replace("\n", "\n" + self._indentStr * indentLevel)
+
+    def _absoluteParentRefStr(self, endpoint: Parser.Endpoint) -> str:
+        currEndpoint = endpoint
+        parentRefStr = ""
+        while currEndpoint is not None:
+            currEndpoint = currEndpoint.parent
+
+            if parentRefStr != "":
+                if currEndpoint is not None:
+                    parentRefStr = "{}.{}".format(currEndpoint.className, parentRefStr)
+                else:
+                    pass # we don't want to add "None." to the string
+            else:
+                if currEndpoint is not None:
+                    parentRefStr = currEndpoint.className
+                else:
+                    parentRefStr = "None"
+        return parentRefStr
