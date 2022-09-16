@@ -125,13 +125,9 @@ class Parser(ABC):
             return self._pathName
 
         @property
-        def isVariable(self) -> bool:
-            return self._pathName[0] == "{"
-
-        @property
         def className(self) -> str:
             if self._className is None:
-                nameNoBraces = self._pathName[1:-1] if self.isVariable else self._pathName
+                nameNoBraces = self._pathName[1:-1] if self._pathName[0] == "{" else self._pathName
                 casedName = convertDashesToCamelCase(nameNoBraces)
                 self._className = casedName
             return self._className
