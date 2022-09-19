@@ -6,7 +6,7 @@ from .parser import Parser
 
 def generateAPI(ParserClass: Parser, openApiFileLocation: str):
     """Generates the api.py file given a parser and API spec-file location"""
-    if not issubclass(ParserClass, Parser):
+    if type(ParserClass) is not type or not issubclass(ParserClass, Parser):
         raise TypeError("generateAPI() requires ParserClass to be a reference to some subclass of Parser, specifically the Parser for the version of spec-file you're using")
     
     jsonDict = _readOpenAPIFile(openApiFileLocation)
