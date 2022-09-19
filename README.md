@@ -110,7 +110,7 @@ Something important to note is while each model contains all of the properties f
 
 ### Generation
 
-The `api.py` file is generated from the `generator` module. Should you need to do this yourself (say, to update the endpoint hierarchy), you can simply call `generator.generateAPI()`, and the rest of the process is automatic. An example:
+The `api.py` file is generated from the `generator` module. You would need to do this every time your OpenAPI spec changes. To do so, you can simply call `generator.generateAPI()`, and the rest of the process is automatic. An example:
 
 ```
 import pyblitz
