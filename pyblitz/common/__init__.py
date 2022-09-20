@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod, abstractclassmethod
 import json
-import requests
 
 class Endpoint(ABC):
     @abstractmethod
@@ -54,12 +53,7 @@ class Schema(ABC):
         return # a serialized dict of self
 
     @classmethod
-    def fromResponse(cls, response):
-        assert type(response) is requests.Response
-        jsonDict = json.loads(response.text)
-        if len(jsonDict.keys()) == 1 and 'data' in jsonDict:
-            jsonDict = jsonDict['data']
-        
+    def fromSerialized(cls, jsonDict: dict):
         self = cls()
         self._loadJsonDict(jsonDict)
         return self

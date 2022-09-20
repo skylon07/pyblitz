@@ -126,7 +126,8 @@ class {name}(Schema):
     {methodSep}\
     def _loadJsonDict(self, jsonDict):
         for (propName, propVal) in jsonDict.items():
-            assert propName in self._propNames, "Unknown property '{{}}' found when loading dict (are you sure it's the right type?)".format(propName)
+            if propName not in self._propNames:
+                raise KeyError("Unknown property '{{}}' found when loading Schema".format(propName))
             self.__dict__[propName] = propVal\
 """
 
