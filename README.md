@@ -42,8 +42,11 @@ myApi.users.register.POST(user)
 pyblitzResponse = myApi.users.spouses.GET(user)
 def transformToUser(responseJson):
     # let's say that the response looks like
-    # "{spouse: {name: ..., id: ..., ...}, user: {name: ..., id: ..., ...}}"
-    return responseJson['spouse']
+    # {
+        spouse: {name: ..., id: ...},
+        user: {name: ..., id: ...}
+    # }
+    return (myApi.User, responseJson['spouse'])
 userSpouse = pyblitzResponse.transform(myApi.User, transformToUser)
 print(userSpouse.name)      # "Jeremy Roberts"
 print(userSpouse.id)        # 13579
@@ -94,19 +97,45 @@ createdUser.name = "Jake McDonald"
 createdUser.id = 12345
 
 pyblitzResponse = myApi.some.user.endpoint.GET()
-userFromResponse = pyblitzResponse.transform(myApi.User, someTransformUserFunction)
+userFromResponse = pyblitzResponse.transform(someTransformUserFunction)
+assert type(userFromResponse) is myApi.User
 ```
 
-A transformation function is a function that takes a parsed JSON object and returns the desired part of that object which should be converted to your `Schema`. A simple example for the above case:
+A transformation function is a function that takes a parsed JSON object and returns a pair of two things: the first is the `Schema` class reference to create from, and the second is the desired part of the responseJson which should be converted to that `Schema`. A simple example for the above case:
 
 ```
 # `responseJson` is an object with this data heirarchy:
-# {data: {extraData: [...], user: {name: ..., id: ..., ...}, ...}}
+# {
+#   data: {
+#       extraData: [...],
+#       user: {name: ..., id: ...},
+#       ...
+#   }
+# }
 def someTransformUserFunction(responseJson):
-    return responseJson['user']
+    return (myApi.User, responseJson['data']['user'])
 ```
 
-Something important to note is while each model contains all of the properties for a given schema, they are "dumb properties", meaning that there is no type checking or other logic to guard you from bad requests. This is *intentional* to allow testing for these kinds of bad requests. (Oh, and I guess it made them easier to implement too...)
+You can also use generators as transformation functions, should you want to parse multiple `Schema` from one response simultaneously. To do so, you can instead use the `transformGen()` function:
+
+```
+# `responseJson` is an object with this data heirarchy:
+# {
+#   data: [
+#       [{name: ..., id: ...}, {metaDataStuff: ...}],
+#       [{name: ..., id: ...}, {metaDataStuff: ...}],
+#       ...
+#   ]
+# }
+def someTransformGenerator(responseJson):
+    for (user, metaData) in responseJson['data']:
+        yield (myApi.User, user)
+        yield (myApi.Meta, metaData)
+
+usersAndMetas = pyblitzResponse.transformGen(someTransformGenerator)
+```
+
+One last important thing to note is while each model contains all of the properties for a given schema, they are "dumb properties", meaning that there is no type checking or other logic to guard you from bad requests. This is *intentional* to allow testing for these kinds of bad requests. (Oh, and I guess it made them easier to implement too...)
 
 ### Generation
 
