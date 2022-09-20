@@ -1,6 +1,8 @@
 import requests
 import json
 
+from ..common import Endpoint, Schema
+
 
 class _NetworkState:
     isAuthed = False
@@ -61,7 +63,6 @@ def _authenticated(fn):
 
 @_authenticated
 def DELETE(endpoint, headers=dict(), data=None, **params):
-    from ..api import Endpoint, Schema
     assert issubclass(endpoint, Endpoint)
     
     if isinstance(data, Schema):
@@ -70,7 +71,6 @@ def DELETE(endpoint, headers=dict(), data=None, **params):
 
 @_authenticated
 def GET(endpoint, headers=dict(), data=None, **params):
-    from ..api import Endpoint, Schema
     assert issubclass(endpoint, Endpoint)
     
     if isinstance(data, Schema):
@@ -79,7 +79,6 @@ def GET(endpoint, headers=dict(), data=None, **params):
 
 @_authenticated
 def PATCH(endpoint, data, headers=dict(), **params):
-    from ..api import Endpoint, Schema
     assert issubclass(endpoint, Endpoint)
     
     if isinstance(data, Schema):
@@ -88,7 +87,6 @@ def PATCH(endpoint, data, headers=dict(), **params):
 
 @_authenticated
 def POST(endpoint, data, headers=dict(), **params):
-    from ..api import Endpoint, Schema
     assert issubclass(endpoint, Endpoint)
     
     if isinstance(data, Schema):
@@ -97,7 +95,6 @@ def POST(endpoint, data, headers=dict(), **params):
 
 @_authenticated
 def PUT(endpoint, data, headers=dict(), **params):
-    from ..api import Endpoint, Schema
     assert issubclass(endpoint, Endpoint)
     
     if isinstance(data, Schema):

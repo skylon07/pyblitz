@@ -4,11 +4,13 @@ from typing import Iterable
 from .files import _readOpenAPIFile, _createFileFromRoot
 from .parser import Parser
 
+
 def generateAPI(ParserClass: Parser, openApiFileLocation: str):
     """Generates the api.py file given a parser and API spec-file location"""
     if type(ParserClass) is not type or not issubclass(ParserClass, Parser):
-        raise TypeError("generateAPI() requires ParserClass to be a reference to some subclass of Parser, specifically the Parser for the version of spec-file you're using")
-    
+        raise TypeError("generateAPI() requires ParserClass to be a reference to some subclass of Parser, \
+            specifically the Parser for the version of spec-file you're using")
+
     jsonDict = _readOpenAPIFile(openApiFileLocation)
 
     parser = ParserClass()
@@ -21,10 +23,6 @@ def generateAPI(ParserClass: Parser, openApiFileLocation: str):
 
 
 _imports = """\
-from abc import ABC, abstractmethod, abstractclassmethod
-import json
-import requests
-
 from .http import *
 
 """
@@ -38,43 +36,7 @@ _endpointGlobals = """\
 # ENDPOINTS #
 #############
 
-class Endpoint(ABC):
-    @abstractmethod
-    def __new__(cls, *args, **kwargs):
-        return # an Endpoint subclass
-
-    @abstractclassmethod
-    def _parentEndpoint(cls):
-        return # the reference to this class' outer Endpoint class
-    
-    @abstractclassmethod
-    def _urlName(cls):
-        return # the endpoint's name as it would appear in the api url path
-
-    @classmethod
-    def url(cls):
-        urlNames = list(cls._urlNamesFromLeaf())
-        return "/" + "/".join(reversed(urlNames))
-
-    @classmethod
-    def _urlNamesFromLeaf(cls):
-        currEndpoint = cls
-        while currEndpoint is not None:
-            yield currEndpoint._urlName()
-            currEndpoint = currEndpoint._parentEndpoint()
-
-class FixedEndpoint(Endpoint, ABC):
-    def __new__(cls, *args, **kwargs):
-        raise RuntimeError("FixedEndpoints cannot be invoked")
-
-class VariableEndpoint(Endpoint, ABC):
-    def __new__(cls, *args, **kwargs):
-        raise RuntimeError("VariableEndpoints cannot be invoked")
-
-class ExpressionEndpoint(Endpoint, ABC):
-    @abstractmethod
-    def __new__(cls, pathValue):
-        return # a VariableEndpoint class
+# endpoint base classes are located in the `common` module
 """
 
 # as a general rule of thumb, each template should not start or
@@ -139,33 +101,7 @@ _schemaGlobals = """\
 # SCHEMA #
 ##########
 
-class Schema(ABC):
-    # NoProp != None since that could be an expected parameter value
-    class NoProp:
-        def __repr__(self):
-            return str(self)
-        def __str__(self):
-            return "<NoProp>"
-    NoProp = NoProp()
-    
-    @abstractmethod
-    def serialize(self):
-        return # a serialized dict of self
-
-    @classmethod
-    def fromResponse(cls, response):
-        assert type(response) is requests.Response
-        jsonDict = json.loads(response.text)
-        if len(jsonDict.keys()) == 1 and 'data' in jsonDict:
-            jsonDict = jsonDict['data']
-        
-        self = cls()
-        self._loadJsonDict(jsonDict)
-        return self
-
-    @abstractmethod
-    def _loadJsonDict(self, jsonDict):
-        return # None, but load the jsonDict into class properties
+# schema base classes are located in the `common` module
 """
 
 _schemaTemplate = """\
@@ -199,7 +135,7 @@ self.{name} = Schema.NoProp
 
 class _EndpointWriter:
     """Converts all Parser.Endpoints to classes (via string templates) and writes them to an api.py file
-    
+
     Construct with a file (or anything with a .write() method), then write in any order:
     ```
         writer = _EndpointWriter(file)
@@ -280,18 +216,22 @@ class _EndpointWriter:
 
     def _genExpressionEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
         nonVarChildEndpoints = list(endpoint.children)
-        varEndpointChildren = [child for child in nonVarChildEndpoints if self._isVariableEndpoint(child)]
+        varEndpointChildren = [
+            child for child in nonVarChildEndpoints if self._isVariableEndpoint(child)]
         assert len(varEndpointChildren) == 1
         varEndpointChild = varEndpointChildren[0]
         nonVarChildEndpoints.pop(nonVarChildEndpoints.index(varEndpointChild))
 
-        varEndpointCode = self._indent(self._genVariableEndpointAndChildren(varEndpointChild), 2) + self._unindentClassSep
-        varEndpointName = re.findall("class ([^()]*)(\(.*\))?:", varEndpointCode)[0][0]
+        varEndpointCode = self._indent(self._genVariableEndpointAndChildren(
+            varEndpointChild), 2) + self._unindentClassSep
+        varEndpointName = re.findall(
+            "class ([^()]*)(\(.*\))?:", varEndpointCode)[0][0]
 
         parentRef = self._genParentsFromExprAncestorStr(endpoint)
 
         # TODO: this code is copied; probably should be shared somehow
-        childClassesCode = self._indent(self._genEndpoints(nonVarChildEndpoints))
+        childClassesCode = self._indent(
+            self._genEndpoints(nonVarChildEndpoints))
 
         endpointMethodStrs = self._indent("".join(
             self._methodSep + methodStr
@@ -376,7 +316,7 @@ class _EndpointWriter:
             desc=prop.desc,
         )
 
-    def _indent(self, code: str, indentLevel: int=1) -> str:
+    def _indent(self, code: str, indentLevel: int = 1) -> str:
         return code.replace("\n", "\n" + self._indentStr * indentLevel)
 
     def _isExpressionEndpoint(self, endpoint: Parser.Endpoint) -> bool:
@@ -387,17 +327,19 @@ class _EndpointWriter:
 
     def _isVariableEndpoint(self, childEndpoint: Parser.Endpoint) -> bool:
         return (childEndpoint.pathName[0], childEndpoint.pathName[-1]) == ("{", "}")
-    
+
     def _parentsUpToExprEndpoint(self, endpoint: Parser.Endpoint) -> Iterable[Parser.Endpoint]:
         currEndpoint = endpoint.parent
-        currIsExprEndpoint = False # even if it is; we want to yield immediate expr endpoint parents for var endpoints
+        # even if it is; we want to yield immediate expr endpoint parents for var endpoints
+        currIsExprEndpoint = False
         while currEndpoint is not None and not currIsExprEndpoint:
             yield currEndpoint
             currIsExprEndpoint = self._isVariableEndpoint(currEndpoint)
             currEndpoint = currEndpoint.parent
 
     def _genParentsFromExprAncestorStr(self, endpoint: Parser.Endpoint) -> str:
-        ancestry = ".".join(parent.className for parent in reversed(list(self._parentsUpToExprEndpoint(endpoint))))
+        ancestry = ".".join(parent.className for parent in reversed(
+            list(self._parentsUpToExprEndpoint(endpoint))))
         if ancestry == "":
             ancestry = "None"
         return ancestry
