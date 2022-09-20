@@ -1,21 +1,24 @@
 import re
 from typing import Iterable
 
-from .files import _readOpenAPIFile, _createFileFromRoot
+from .files import _readOpenAPIFile, _createApiFile
 from .parser import Parser
 
 
-def generateAPI(ParserClass: Parser, openApiFileLocation: str):
+def generateAPI(ParserClass: Parser, openApiFilePath: str, apiOutputPath: str):
     """Generates the api.py file given a parser and API spec-file location"""
     if not isinstance(type(ParserClass), type) or not issubclass(ParserClass, Parser):
         raise TypeError("generateAPI() requires ParserClass to be a reference to some subclass of Parser, \
             specifically the Parser for the version of spec-file you're using")
 
-    jsonDict = _readOpenAPIFile(openApiFileLocation)
+    if apiOutputPath[-3:] != ".py":
+        raise ValueError("apiOutputPath must point to a '.py' file")
+
+    jsonDict = _readOpenAPIFile(openApiFilePath)
 
     parser = ParserClass()
     parser.parse(jsonDict)
-    with _createFileFromRoot("api.py") as apiFile:
+    with _createApiFile(apiOutputPath) as apiFile:
         writer = _EndpointWriter(apiFile)
         writer.writeServers(parser.servers)
         writer.writeEndpoints(parser.endpoints)
