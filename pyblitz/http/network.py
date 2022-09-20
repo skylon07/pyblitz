@@ -11,6 +11,8 @@ class _NetworkState:
 
 def registerServer(name, url):
     """Records data for a server that can later be activated by `setActiveServer(name)`"""
+    if url[-1] == "/":
+        url.pop()
     _NetworkState.servers[name] = url
 
 def getServer(name):
