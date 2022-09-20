@@ -7,7 +7,7 @@ from .parser import Parser
 
 def generateAPI(ParserClass: Parser, openApiFileLocation: str):
     """Generates the api.py file given a parser and API spec-file location"""
-    if type(ParserClass) is not type or not issubclass(ParserClass, Parser):
+    if not isinstance(type(ParserClass), type) or not issubclass(ParserClass, Parser):
         raise TypeError("generateAPI() requires ParserClass to be a reference to some subclass of Parser, \
             specifically the Parser for the version of spec-file you're using")
 
@@ -23,12 +23,12 @@ def generateAPI(ParserClass: Parser, openApiFileLocation: str):
 
 
 _imports = """\
-from .http import *
-
+from pyblitz import *
+from pyblitz.http import *\
 """
 
 _registerServerTemplate = """\
-registerServer("{name}", "{url}")\
+registerServer("{name}", "{url}", "{desc}")\
 """
 
 _endpointGlobals = """\
@@ -36,7 +36,7 @@ _endpointGlobals = """\
 # ENDPOINTS #
 #############
 
-# endpoint base classes are located in the `common` module
+# endpoint base classes are located in the `common` module\
 """
 
 # as a general rule of thumb, each template should not start or
@@ -101,7 +101,7 @@ _schemaGlobals = """\
 # SCHEMA #
 ##########
 
-# schema base classes are located in the `common` module
+# schema base classes are located in the `common` module\
 """
 
 _schemaTemplate = """\
@@ -163,7 +163,7 @@ class _EndpointWriter:
         registerFnsCode = "\n".join(
             serverRegisterCode
             for server in servers
-            for serverRegisterCode in [_registerServerTemplate.format(name=server.name, url=server.url)]
+            for serverRegisterCode in [_registerServerTemplate.format(name=server.name, url=server.url, desc=server.desc)]
         )
         self._file.write(registerFnsCode + self._classSep)
 

@@ -11,7 +11,7 @@ class _NetworkState:
     session = requests.Session()
 
 
-def registerServer(name, url):
+def registerServer(name, url, desc=""):
     """Records data for a server that can later be activated by `setActiveServer(name)`"""
     if url[-1] == "/":
         url.pop()
