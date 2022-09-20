@@ -264,14 +264,11 @@ class Parser_3_1_0(Parser):
         assert jsonDict['openapi'] == "3.1.0", \
             "Parser_3_1_0 is intended to only work with version 3.1.0 specifications"
 
-        for server in jsonDict['servers']:
-            desc = server['description']
-            if desc == "Production":
-                server = Parser.Server('prod', server['url'], desc)
-            elif desc == "Development":
-                server = Parser.Server('dev', server['url'], desc)
-            else:
-                raise ParseError("An invalid server type was received")
+        serverList = jsonDict['servers']
+        for (server, idx) in zip(serverList, range(len(serverList))):
+            name = server['description'] or "NO_NAME_FOUND_{}".format(idx + 1)
+            url = server['url']
+            server = Parser.Server(name, url, "Your description for '{}' here".format(name))
             self._recordServer(server)
 
         for (pathUrl, path) in jsonDict['paths'].items():
