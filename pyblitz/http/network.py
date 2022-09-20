@@ -63,7 +63,7 @@ def _authenticated(fn):
 
 @_authenticated
 def DELETE(endpoint, headers=dict(), data=None, **params):
-    assert issubclass(endpoint, Endpoint)
+    _checkIsEndpoint(endpoint)
     
     if isinstance(data, Schema):
         data = json.dumps(data.serialize())
@@ -71,7 +71,7 @@ def DELETE(endpoint, headers=dict(), data=None, **params):
 
 @_authenticated
 def GET(endpoint, headers=dict(), data=None, **params):
-    assert issubclass(endpoint, Endpoint)
+    _checkIsEndpoint(endpoint)
     
     if isinstance(data, Schema):
         data = json.dumps(data.serialize())
@@ -79,7 +79,7 @@ def GET(endpoint, headers=dict(), data=None, **params):
 
 @_authenticated
 def PATCH(endpoint, data, headers=dict(), **params):
-    assert issubclass(endpoint, Endpoint)
+    _checkIsEndpoint(endpoint)
     
     if isinstance(data, Schema):
         data = json.dumps(data.serialize())
@@ -87,7 +87,7 @@ def PATCH(endpoint, data, headers=dict(), **params):
 
 @_authenticated
 def POST(endpoint, data, headers=dict(), **params):
-    assert issubclass(endpoint, Endpoint)
+    _checkIsEndpoint(endpoint)
     
     if isinstance(data, Schema):
         data = json.dumps(data.serialize())
@@ -95,8 +95,12 @@ def POST(endpoint, data, headers=dict(), **params):
 
 @_authenticated
 def PUT(endpoint, data, headers=dict(), **params):
-    assert issubclass(endpoint, Endpoint)
+    _checkIsEndpoint(endpoint)
     
     if isinstance(data, Schema):
         data = json.dumps(data.serialize())
     return _NetworkState.session.put(_NetworkState.activeServer + endpoint.url(), headers=headers, params=params)
+
+def _checkIsEndpoint(endpoint):
+    if not isinstance(endpoint, Endpoint):
+        raise ValueError("http methods must be given a pyblitz.Endpoint for argument `endpoint`")
