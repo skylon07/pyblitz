@@ -160,7 +160,7 @@ class _EndpointWriter:
         self._file.write(_imports)
 
     def writeServers(self, servers: Iterable[Parser.Server]):
-        registerFnsCode = "\n".join(
+        registerFnsCode = self._classSep + "\n".join(
             serverRegisterCode
             for server in servers
             for serverRegisterCode in [_registerServerTemplate.format(name=server.name, url=server.url, desc=server.desc)]
