@@ -2,7 +2,6 @@ import json
 from typing import Callable, Union
 
 from ..common import Schema
-from .network import _NetworkState
 
 
 _fromAuthorizedMethodKey = object()
@@ -21,28 +20,33 @@ class Request:
 
     @classmethod
     def Delete(cls, toUrl: str):
-        self = cls(_fromAuthorizedMethodKey, toUrl, _NetworkState.session.delete)
+        self = cls(_fromAuthorizedMethodKey, toUrl, cls._getSession().delete)
         return self
 
     @classmethod
     def Get(cls, toUrl: str):
-        self = cls(_fromAuthorizedMethodKey, toUrl, _NetworkState.session.get)
+        self = cls(_fromAuthorizedMethodKey, toUrl, cls._getSession().get)
         return self
 
     @classmethod
     def Patch(cls, toUrl: str):
-        self = cls(_fromAuthorizedMethodKey, toUrl, _NetworkState.session.patch)
+        self = cls(_fromAuthorizedMethodKey, toUrl, cls._getSession().patch)
         return self
 
     @classmethod
     def Post(cls, toUrl: str):
-        self = cls(_fromAuthorizedMethodKey, toUrl, _NetworkState.session.post)
+        self = cls(_fromAuthorizedMethodKey, toUrl, cls._getSession().post)
         return self
 
     @classmethod
     def Put(cls, toUrl: str):
-        self = cls(_fromAuthorizedMethodKey, toUrl, _NetworkState.session.put)
+        self = cls(_fromAuthorizedMethodKey, toUrl, cls._getSession().put)
         return self
+
+    @classmethod
+    def _getSession(self):
+        from .network import _NetworkState
+        return _NetworkState.session
 
     def load(self, data: Union[str, dict, Schema], headers: dict, params: dict):
         """Loads data, headers, and query parameters into this Request
