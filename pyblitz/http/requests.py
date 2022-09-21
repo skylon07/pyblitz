@@ -66,14 +66,18 @@ class Request:
         self._loaded = True
 
     def _manipulateDataToStr(self, data):
-        """There is one goal: convert `data` into a meaningful http request string"""
-        if isinstance(data, Schema):
-            data = data.serialize()
-        if type(data) is dict:
-            data = json.dumps(data)
+        """There is one goal: convert `data` into a meaningful http request string (recursively!)"""
         if data is None:
             data = ""
+        else:
+            data = json.dumps(data, default=self._serializeFn)
         return data
+
+    def _serializeFn(self, obj):
+        if isinstance(obj, Schema):
+            return obj.serialize()
+        else:
+            assert "this" is "not handled", "Unconsidered serialize case"
 
     def send(self):
         assert self._loaded, "Cannot send request before calling load()"
