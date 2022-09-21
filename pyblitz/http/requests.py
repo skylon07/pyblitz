@@ -70,7 +70,7 @@ class Request:
         if data is None:
             data = ""
         else:
-            data = json.dumps(data, default=self._serializeFn)
+            data = json.dumps(data, default=self._serializeFn, sort_keys=True)
         return data
 
     def _serializeFn(self, obj):

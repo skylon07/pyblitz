@@ -115,7 +115,7 @@ class {name}(pyblitz.Schema):
     def __init__(self):
         {propDefs}\
     {methodSep}\
-    def serialize(self):
+    def _serialize(self):
         serialDict = {{
             propName: propVal
             for propName in self._propNames

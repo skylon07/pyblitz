@@ -47,9 +47,16 @@ class Schema(ABC):
         def __str__(self):
             return "<NoProp>"
     NoProp = NoProp()
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.serialize() == other.serialize()
     
-    @abstractmethod
     def serialize(self):
+        serialize = lambda selfAgain: self._serialize()
+        return json.dumps(self, default=serialize, sort_keys=True)
+
+    @abstractmethod
+    def _serialize(self):
         return # a serialized dict of self
 
     @classmethod
