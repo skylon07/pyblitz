@@ -1,14 +1,15 @@
-import requests
-import json
+from requests import Session
 
-from ..common import Endpoint, Schema
+from ..common import Endpoint
+from .requests import Request
+from .responses import Response
 
 
 class _NetworkState:
     isAuthed = False
     activeServer = None
     servers = dict()
-    session = requests.Session()
+    session = Session()
 
 
 def registerServer(name, url, desc=""):
@@ -62,41 +63,50 @@ def _authenticated(fn):
 
 
 @_authenticated
-def DELETE(endpoint, headers=dict(), data=None, **params):
-    assert issubclass(endpoint, Endpoint)
-    
-    if isinstance(data, Schema):
-        data = json.dumps(data.serialize())
-    return _NetworkState.session.delete(_NetworkState.activeServer + endpoint.url(), data=data, headers=headers, params=params)
+def DELETE(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
+    _checkIsEndpoint(endpoint)
+    fullUrl = _NetworkState.activeServer + endpoint.url()
+    request = Request.Delete(fullUrl)
+    request.load(data, headers, params)
+    httpResponse = request.send()
+    return Response(httpResponse)
 
 @_authenticated
-def GET(endpoint, headers=dict(), data=None, **params):
-    assert issubclass(endpoint, Endpoint)
-    
-    if isinstance(data, Schema):
-        data = json.dumps(data.serialize())
-    return _NetworkState.session.get(_NetworkState.activeServer + endpoint.url(), data=data, headers=headers, params=params)
+def GET(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
+    _checkIsEndpoint(endpoint)
+    fullUrl = _NetworkState.activeServer + endpoint.url()
+    request = Request.Get(fullUrl)
+    request.load(data, headers, params)
+    httpResponse = request.send()
+    return Response(httpResponse)
 
 @_authenticated
-def PATCH(endpoint, data, headers=dict(), **params):
-    assert issubclass(endpoint, Endpoint)
-    
-    if isinstance(data, Schema):
-        data = json.dumps(data.serialize())
-    return _NetworkState.session.patch(_NetworkState.activeServer + endpoint.url(), data=data, headers=headers, params=params)
+def PATCH(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
+    _checkIsEndpoint(endpoint)
+    fullUrl = _NetworkState.activeServer + endpoint.url()
+    request = Request.Patch(fullUrl)
+    request.load(data, headers, params)
+    httpResponse = request.send()
+    return Response(httpResponse)
 
 @_authenticated
-def POST(endpoint, data, headers=dict(), **params):
-    assert issubclass(endpoint, Endpoint)
-    
-    if isinstance(data, Schema):
-        data = json.dumps(data.serialize())
-    return _NetworkState.session.post(_NetworkState.activeServer + endpoint.url(), data=data, headers=headers, params=params)
+def POST(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
+    _checkIsEndpoint(endpoint)
+    fullUrl = _NetworkState.activeServer + endpoint.url()
+    request = Request.Post(fullUrl)
+    request.load(data, headers, params)
+    httpResponse = request.send()
+    return Response(httpResponse)
 
 @_authenticated
-def PUT(endpoint, data, headers=dict(), **params):
-    assert issubclass(endpoint, Endpoint)
-    
-    if isinstance(data, Schema):
-        data = json.dumps(data.serialize())
-    return _NetworkState.session.put(_NetworkState.activeServer + endpoint.url(), headers=headers, params=params)
+def PUT(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
+    _checkIsEndpoint(endpoint)
+    fullUrl = _NetworkState.activeServer + endpoint.url()
+    request = Request.Put(fullUrl)
+    request.load(data, headers, params)
+    httpResponse = request.send()
+    return Response(httpResponse)
+
+def _checkIsEndpoint(endpoint):
+    if not issubclass(endpoint, Endpoint):
+        raise ValueError("http methods must be given a pyblitz.Endpoint for argument `endpoint`")

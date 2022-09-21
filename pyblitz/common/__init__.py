@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod, abstractclassmethod
 import json
-import requests
 
 class Endpoint(ABC):
     @abstractmethod
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, endpointPathValue):
         return # an Endpoint subclass
 
     @abstractclassmethod
@@ -28,11 +27,11 @@ class Endpoint(ABC):
             currEndpoint = currEndpoint._parentEndpoint()
 
 class FixedEndpoint(Endpoint, ABC):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, NOT_VARIABLE):
         raise RuntimeError("FixedEndpoints cannot be invoked")
 
 class VariableEndpoint(Endpoint, ABC):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, NOT_VARIABLE):
         raise RuntimeError("VariableEndpoints cannot be invoked")
 
 class ExpressionEndpoint(Endpoint, ABC):
@@ -48,18 +47,42 @@ class Schema(ABC):
         def __str__(self):
             return "<NoProp>"
     NoProp = NoProp()
+
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self.__init__(*args, **kwargs)
+        if not '_Schema__initted' in self.__dict__ or not self.__initted:
+            raise TypeError("Child of Schema did not call Schema.__init__()")
+        return self
+
+    def __init__(self):
+        self._filter = dict()
+        self.__initted = True
     
+    def __eq__(self, other):
+        return type(self) is type(other) and self.serialize(ignoreFilter=True) == other.serialize(ignoreFilter=True)
+    
+    def serialize(self, ignoreFilter=False) -> dict:
+        serialDict = self._serialize()
+        shouldFilter = not ignoreFilter and len(self._filter) > 0
+        if shouldFilter:
+            return {
+                key: val
+                for (key, val) in serialDict.items()
+                if key in self._filter
+            }
+        else:
+            return serialDict
+
+    def serialFilter(self, *paramsToUse):
+        self._filter = paramsToUse
+
     @abstractmethod
-    def serialize(self):
+    def _serialize(self):
         return # a serialized dict of self
 
     @classmethod
-    def fromResponse(cls, response):
-        assert type(response) is requests.Response
-        jsonDict = json.loads(response.text)
-        if len(jsonDict.keys()) == 1 and 'data' in jsonDict:
-            jsonDict = jsonDict['data']
-        
+    def fromSerialized(cls, jsonDict: dict):
         self = cls()
         self._loadJsonDict(jsonDict)
         return self
