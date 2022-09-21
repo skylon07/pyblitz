@@ -60,11 +60,12 @@ class Schema(ABC):
         self.__initted = True
     
     def __eq__(self, other):
-        return type(self) is type(other) and self.serialize() == other.serialize()
+        return type(self) is type(other) and self.serialize(ignoreFilter=True) == other.serialize(ignoreFilter=True)
     
-    def serialize(self) -> dict:
+    def serialize(self, ignoreFilter=False) -> dict:
         serialDict = self._serialize()
-        if len(self._filter) > 0:
+        shouldFilter = not ignoreFilter and len(self._filter) > 0
+        if shouldFilter:
             return {
                 key: val
                 for (key, val) in serialDict.items()
