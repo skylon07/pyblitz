@@ -3,7 +3,7 @@ import json
 
 class Endpoint(ABC):
     @abstractmethod
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, endpointPathValue):
         return # an Endpoint subclass
 
     @abstractclassmethod
@@ -27,11 +27,11 @@ class Endpoint(ABC):
             currEndpoint = currEndpoint._parentEndpoint()
 
 class FixedEndpoint(Endpoint, ABC):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, NOT_VARIABLE):
         raise RuntimeError("FixedEndpoints cannot be invoked")
 
 class VariableEndpoint(Endpoint, ABC):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, NOT_VARIABLE):
         raise RuntimeError("VariableEndpoints cannot be invoked")
 
 class ExpressionEndpoint(Endpoint, ABC):
