@@ -6,7 +6,12 @@ from ..common import Schema
 
 class Response:
     def __init__(self, response: requests.Response):
+        self._response = response
         self._jsonDict = json.loads(response.text)
+
+    @property
+    def status(self):
+        return self._response.status_code
 
     def transform(self, transformFn):
         transformResult = transformFn(self._jsonDict)
