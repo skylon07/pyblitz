@@ -6,13 +6,12 @@ from ..common import Schema
 
 class Response:
     def __init__(self, response: requests.Response):
-        self._jsonDict = json.loads(response.text())
+        self._jsonDict = json.loads(response.text)
 
     def transform(self, transformFn):
         transformResult = transformFn(self._jsonDict)
         (SchemaClass, transDict) = self._checkTransformation(transformResult)
         return SchemaClass.fromSerialized(transDict)
-
 
     def transformGen(self, transformGenFn):
         return tuple(

@@ -26,12 +26,11 @@ def generateAPI(ParserClass: Parser, openApiFilePath: str, apiOutputPath: str):
 
 
 _imports = """\
-from pyblitz import *
-from pyblitz.http import *\
+import pyblitz
 """
 
 _registerServerTemplate = """\
-registerServer("{name}", "{url}", "{desc}")\
+pyblitz.http.registerServer("{name}", "{url}", "{desc}")\
 """
 
 _endpointGlobals = """\
@@ -46,7 +45,7 @@ _endpointGlobals = """\
 # end with whitespace; template variables also should NOT include
 # newlines; think "if this variable wasn't here, do I want a newline?"
 _fixedEndpointTemplate = """\
-class {name}(FixedEndpoint):
+class {name}(pyblitz.FixedEndpoint):
     @classmethod
     def _parentEndpoint(cls):
         return {parentRef}
@@ -57,7 +56,7 @@ class {name}(FixedEndpoint):
 """
 
 _variableEndpointTemplate = """\
-class {name}(VariableEndpoint):
+class {name}(pyblitz.VariableEndpoint):
     @classmethod
     def _parentEndpoint(cls):
         return {parentRef}
@@ -71,7 +70,7 @@ class {name}(VariableEndpoint):
 # while still being able to reference a consistent `pathValue` variable name
 # from the inner VariableEndpoint class
 _expressionEndpointTemplate = """\
-class {name}(ExpressionEndpoint):
+class {name}(pyblitz.ExpressionEndpoint):
     @classmethod
     def _parentEndpoint(cls):
         return {parentRef}
@@ -87,16 +86,17 @@ class {name}(ExpressionEndpoint):
 """
 
 _endpointMethodTemplate_noData = """\
-def {method}(cls, *args, headers=dict(), data=None, **params):
+@classmethod
+def {method}(cls, *args, headers=dict(), data=None, **params) -> pyblitz.http.Response:
     \"""{desc}\"""
-    return {method}(cls, *args, headers=headers, data=data, **params)\
+    return pyblitz.http.{method}(cls, *args, headers=headers, data=data, **params)\
 """
 
 _endpointMethodTemplate_full = """\
 @classmethod
-def {method}(cls, data, *args, headers=dict(), **params):
+def {method}(cls, data, *args, headers=dict(), **params) -> pyblitz.http.Response:
     \"""{desc}\"""
-    return {method}(cls, data, *args, headers=headers, **params)\
+    return pyblitz.http.{method}(cls, data, *args, headers=headers, **params)\
 """
 
 _schemaGlobals = """\
@@ -108,7 +108,7 @@ _schemaGlobals = """\
 """
 
 _schemaTemplate = """\
-class {name}(Schema):
+class {name}(pyblitz.Schema):
     \"""{desc}\"""
     _propNames = {propDefNames}\
     {methodSep}\
@@ -120,7 +120,7 @@ class {name}(Schema):
             propName: propVal
             for propName in self._propNames
             for propVal in [self.__dict__[propName]]
-            if propVal is not Schema.NoProp
+            if propVal is not pyblitz.Schema.NoProp
         }}
         return serialDict\
     {methodSep}\
@@ -132,7 +132,7 @@ class {name}(Schema):
 """
 
 _propTemplate = """\
-self.{name} = Schema.NoProp
+self.{name} = pyblitz.Schema.NoProp
 \"""{desc}\"""\
 """
 

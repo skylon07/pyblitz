@@ -8,7 +8,7 @@ _fromAuthorizedMethodKey = object()
 
 class Request:
     def __init__(self, *args, **kwargs):
-        if len(args) != 1 or args[0] is not _fromAuthorizedMethodKey:
+        if len(args) == 0 or args[0] is not _fromAuthorizedMethodKey:
             raise RuntimeError("Cannot initialize Request() directly;\
                 use a @classmethod constructor instead for the http call you want to make")
         self.__authorized_init__(*args, **kwargs)
@@ -16,6 +16,7 @@ class Request:
     def __authorized_init__(self, fromAuthorizedMethodKey, toUrl: str, httpMethodFn: Callable):
         assert fromAuthorizedMethodKey is _fromAuthorizedMethodKey, "Invalid call made to create Request()"
         self._url = toUrl
+        self._methodFn = httpMethodFn
         self._loaded = False
 
     @classmethod
@@ -70,8 +71,10 @@ class Request:
             data = data.serialize()
         if type(data) is dict:
             data = json.dumps(data)
+        if data is None:
+            data = ""
         return data
 
     def send(self):
         assert self._loaded, "Cannot send request before calling load()"
-        self._methodFn(self._url, data=self._dataStr, headers=self._headers, params=self._params)
+        return self._methodFn(self._url, data=self._dataStr, headers=self._headers, params=self._params)

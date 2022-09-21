@@ -63,7 +63,7 @@ def _authenticated(fn):
 
 
 @_authenticated
-def DELETE(endpoint: Endpoint, headers=dict(), data=None, **params):
+def DELETE(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Delete(fullUrl)
@@ -72,7 +72,7 @@ def DELETE(endpoint: Endpoint, headers=dict(), data=None, **params):
     return Response(httpResponse)
 
 @_authenticated
-def GET(endpoint: Endpoint, headers=dict(), data=None, **params):
+def GET(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Get(fullUrl)
@@ -81,7 +81,7 @@ def GET(endpoint: Endpoint, headers=dict(), data=None, **params):
     return Response(httpResponse)
 
 @_authenticated
-def PATCH(endpoint: Endpoint, data, headers=dict(), **params):
+def PATCH(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Patch(fullUrl)
@@ -90,7 +90,7 @@ def PATCH(endpoint: Endpoint, data, headers=dict(), **params):
     return Response(httpResponse)
 
 @_authenticated
-def POST(endpoint: Endpoint, data, headers=dict(), **params):
+def POST(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Post(fullUrl)
@@ -99,7 +99,7 @@ def POST(endpoint: Endpoint, data, headers=dict(), **params):
     return Response(httpResponse)
 
 @_authenticated
-def PUT(endpoint: Endpoint, data, headers=dict(), **params):
+def PUT(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Put(fullUrl)
@@ -108,5 +108,5 @@ def PUT(endpoint: Endpoint, data, headers=dict(), **params):
     return Response(httpResponse)
 
 def _checkIsEndpoint(endpoint):
-    if not isinstance(endpoint, Endpoint):
+    if not issubclass(endpoint, Endpoint):
         raise ValueError("http methods must be given a pyblitz.Endpoint for argument `endpoint`")
