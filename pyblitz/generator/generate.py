@@ -113,6 +113,7 @@ class {name}(pyblitz.Schema):
     _propNames = {propDefNames}\
     {methodSep}\
     def __init__(self):
+        super().__init__()
         {propDefs}\
     {methodSep}\
     def _serialize(self):

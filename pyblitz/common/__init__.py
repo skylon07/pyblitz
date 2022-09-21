@@ -48,12 +48,33 @@ class Schema(ABC):
             return "<NoProp>"
     NoProp = NoProp()
 
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self.__init__(*args, **kwargs)
+        if not '_Schema__initted' in self.__dict__ or not self.__initted:
+            raise TypeError("Child of Schema did not call Schema.__init__()")
+        return self
+
+    def __init__(self):
+        self._filter = dict()
+        self.__initted = True
+    
     def __eq__(self, other):
         return type(self) is type(other) and self.serialize() == other.serialize()
     
-    def serialize(self):
-        serialize = lambda selfAgain: self._serialize()
-        return json.dumps(self, default=serialize, sort_keys=True)
+    def serialize(self) -> dict:
+        serialDict = self._serialize()
+        if len(self._filter) > 0:
+            return {
+                key: val
+                for (key, val) in serialDict.items()
+                if key in self._filter
+            }
+        else:
+            return serialDict
+
+    def serialFilter(self, *paramsToUse):
+        self._filter = paramsToUse
 
     @abstractmethod
     def _serialize(self):

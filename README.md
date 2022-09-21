@@ -145,6 +145,17 @@ patchedUser = pyblitzResponse.transform(userTransformFn)
 assert patchedUser == user
 ```
 
+If serializing only a part of the `Schema` is desired, you can use the `serialFilter()` function to set what properties are included upon serialization:
+
+```
+user.serialFilter('name', 'id')
+# now, serializing `user` will generate a dict() with only 'name' and 'id' keys;
+# if `user` had other properties, they would be ignored
+pyblitzResponse = myApi.some.endpoint.PATCH({'user': user})
+# reset the filter, if you want
+user.serialFilter()
+```
+
 One last important thing to note is while each model contains all of the properties for a given schema, they are "dumb properties", meaning that there is no type checking or other logic to guard you from bad requests. This is *intentional* to allow testing for these kinds of bad requests. (Oh, and I guess it made them easier to implement too...)
 
 ### Generation
