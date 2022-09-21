@@ -39,7 +39,7 @@ user.spouseId = 13579
 myApi.users.register.POST(user)
 
 # create models (from responses)
-pyblitzResponse = myApi.users.spouses.GET(user)
+pyblitzResponse = myApi.users.spouses.GET({'user': user})
 def transformToUser(responseJson):
     # let's say that the response looks like
     # {
@@ -133,6 +133,16 @@ def someTransformGenerator(responseJson):
         yield (myApi.Meta, metaData)
 
 usersAndMetas = pyblitzResponse.transformGen(someTransformGenerator)
+```
+
+Once `Schema` are created, they can be sent directly into the endpoints' http methods to be automatically serialized into the request. This is useful especially if you want to change some data and sync it with the server:
+
+```
+user.name = "NEW NAME"
+pyblitzResponse = myApi.some.endpoint.PATCH({'user': user})
+# let's say this endpoint returns the user after patching...
+patchedUser = pyblitzResponse.transform(userTransformFn)
+assert patchedUser == user
 ```
 
 One last important thing to note is while each model contains all of the properties for a given schema, they are "dumb properties", meaning that there is no type checking or other logic to guard you from bad requests. This is *intentional* to allow testing for these kinds of bad requests. (Oh, and I guess it made them easier to implement too...)
