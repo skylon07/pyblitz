@@ -23,7 +23,7 @@ class Parser(ABC):
         self.__init_called = False
         self.__init__()
         if not self.__init_called:
-            raise RuntimeError("Parser subclass {} did not call super().__init__()".format(cls))
+            raise RuntimeError(f"Parser subclass {cls} did not call super().__init__()")
         return self
 
     def __init__(self):
@@ -127,7 +127,7 @@ class Parser(ABC):
                 parent.addChild(self)
 
         def __repr__(self):
-            return "<Parser.Endpoint {}>".format(self.getPath())
+            return f"<Parser.Endpoint {self.getPath()}>"
 
         @property
         def pathName(self) -> str:
@@ -266,9 +266,9 @@ class Parser_3_1_0(Parser):
 
         serverList = jsonDict['servers']
         for (server, idx) in zip(serverList, range(len(serverList))):
-            name = server['description'] or "NO_NAME_FOUND_{}".format(idx + 1)
+            name = server['description'] or f"NO_NAME_FOUND_{idx + 1}"
             url = server['url']
-            server = Parser.Server(name, url, "Your description for '{}' here".format(name))
+            server = Parser.Server(name, url, f"Your description for '{name}' here")
             self._recordServer(server)
 
         for (pathUrl, path) in jsonDict['paths'].items():
@@ -286,4 +286,4 @@ class Parser_3_1_0(Parser):
     def _genEndpointDesc(self, methodData):
         summary = methodData['summary']
         wrappedDesc = methodData['description']
-        return "{}\n\n{}".format(summary, wrappedDesc)
+        return f"{summary}\n\n{wrappedDesc}"

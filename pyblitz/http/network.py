@@ -34,7 +34,7 @@ def setActiveServer(name):
     """
 
     if name not in _NetworkState.servers:
-        raise ValueError("Server '{}' is not registered!".format(name))
+        raise ValueError(f"Server '{name}' is not registered!")
     _NetworkState.activeServer = _NetworkState.servers[name]
 
 
@@ -46,7 +46,7 @@ def setAuth(token):
     """
 
     _NetworkState.session.headers.update({
-        "authorization": "Bearer {}".format(token),
+        "authorization": f"Bearer {token}",
     })
     _NetworkState.isAuthed = True
 

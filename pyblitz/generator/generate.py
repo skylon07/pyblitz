@@ -128,7 +128,7 @@ class {name}(pyblitz.Schema):
     def _loadJsonDict(self, jsonDict):
         for (propName, propVal) in jsonDict.items():
             if propName not in self._propNames:
-                raise KeyError("Unknown property '{{}}' found when loading Schema".format(propName))
+                raise KeyError(f"Unknown property '{{propName}}' found when loading Schema")
             self.__dict__[propName] = propVal\
 """
 
@@ -214,7 +214,7 @@ class _EndpointWriter:
         return _fixedEndpointTemplate.format(
             name=endpoint.className,
             parentRef=parentRef,
-            urlNameStr="'{}'".format(endpoint.pathName),
+            urlNameStr=f"'{endpoint.pathName}'",
             methods=endpointMethodStrs,
             childClasses=childClassesCode,
         )
@@ -254,7 +254,7 @@ class _EndpointWriter:
         return _expressionEndpointTemplate.format(
             name=endpoint.className,
             parentRef=parentRef,
-            urlNameStr="'{}'".format(endpoint.pathName),
+            urlNameStr=f"'{endpoint.pathName}'",
             pathValueName=varEndpointName,
             hardenedClass=varEndpointCode,
             hardenedClassName=varEndpointName,
