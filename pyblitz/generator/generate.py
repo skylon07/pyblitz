@@ -26,7 +26,10 @@ def generateAPI(ParserClass: Parser, openApiFilePath: str, apiOutputPath: str):
 
 
 _imports = """\
-import pyblitz\
+import pyblitz
+
+http = pyblitz.http
+Schema = pyblitz.common.Schema\
 """
 
 _registerServerTemplate = """\
