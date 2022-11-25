@@ -224,8 +224,12 @@ class _EndpointWriter:
 
     def _genExpressionEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
         nonVarChildEndpoints = list(endpoint.children)
+        # TODO: what if the child is also an expression endpoint?
         varEndpointChildren = [
-            child for child in nonVarChildEndpoints if self._isVariableEndpoint(child)]
+            child
+            for child in nonVarChildEndpoints
+            if self._isVariableEndpoint(child)
+        ]
         assert len(varEndpointChildren) == 1
         varEndpointChild = varEndpointChildren[0]
         nonVarChildEndpoints.pop(nonVarChildEndpoints.index(varEndpointChild))
