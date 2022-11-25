@@ -16,6 +16,13 @@ class Parser(ABC):
     - servers -- a list of found Parser.Servers
     - endpoints -- a list of found Parser.Endpoints
     - schema -- a list of found Parser.Schema
+
+    Implementation classes *must* provide data by calling all applicable data sets
+    in the OpenAPI JSON object using these methods:
+    - _recordServer()
+    - _recordMethod()
+    - _recordResponseSchema()
+    - _recordSchemaProperty()
     """
     
     def __new__(cls, *args, **kwargs):
