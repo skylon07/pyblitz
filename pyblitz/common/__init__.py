@@ -27,11 +27,11 @@ class Endpoint(ABC):
             currEndpoint = currEndpoint._parentEndpoint()
 
 class FixedEndpoint(Endpoint, ABC):
-    def __new__(cls, NOT_VARIABLE):
+    def __new__(cls, NOT_EXPRESSION_ENDPOINT):
         raise RuntimeError("FixedEndpoints cannot be invoked")
 
 class VariableEndpoint(Endpoint, ABC):
-    def __new__(cls, NOT_VARIABLE):
+    def __new__(cls, NOT_EXPRESSION_ENDPOINT):
         raise RuntimeError("VariableEndpoints cannot be invoked")
 
 class ExpressionEndpoint(Endpoint, ABC):
