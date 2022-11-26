@@ -5,33 +5,35 @@ from ..common import Schema
 
 
 class Response:
-    def __init__(self, response: requests.Response):
+    def __init__(self, response: requests.Response, jsonSchemaPaths: dict):
         self._response = response
         self._jsonDict = json.loads(response.text)
+        self._transformedJsonDict = json.loads(response.text)
+        self._transformSchema(jsonSchemaPaths)
+
+    def __getitem__(self, key):
+        return self._transformedJsonDict[key]
 
     @property
     def status(self):
         return self._response.status_code
 
     def transform(self, transformFn):
-        transformResult = transformFn(self._jsonDict)
-        (SchemaClass, transDict) = self._checkTransformation(transformResult)
-        return SchemaClass.fromSerialized(transDict)
+        return transformFn(self._jsonDict)
 
-    def transformGen(self, transformGenFn):
-        return tuple(
-            SchemaClass.fromSerialized(transDict)
-            for transformResult in transformGenFn(self._jsonDict)
-            for (SchemaClass, transDict) in [self._checkTransformation(transformResult)]
-        )
-    
-    def _checkTransformation(self, transformReturn):
-        if not type(transformReturn) is tuple or len(transformReturn) != 2:
-            raise TypeError("Transform functions must return a tuple of size-2")
-
-        (SchemaClass, transDict) = transformReturn
-        if not issubclass(SchemaClass, Schema):
-            raise TypeError("First value in returned transform-tuple must be one of the Schema classes generated in the api file")
-        
-        return transformReturn
-
+    def _transformSchema(self, jsonSchemaPaths):
+        code = self._response.status_code
+        schemaPathsForCode = jsonSchemaPaths.get(code, {})
+        for (pathList, schemaClass) in schemaPathsForCode.items():
+            dictToModify = self._transformedJsonDict
+            validPathsList = [
+                path
+                for path in pathList
+                if path != "$ref"
+            ]
+            for pathKey in validPathsList[:-1]:
+                isValidPathKey = pathKey != "$ref"
+                if isValidPathKey:
+                    dictToModify = dictToModify[pathKey]
+            lastPath = validPathsList[-1]
+            dictToModify[lastPath] = schemaClass.fromSerialized(dictToModify[lastPath])

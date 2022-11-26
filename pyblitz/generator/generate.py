@@ -55,7 +55,7 @@ class {name}(pyblitz.FixedEndpoint):
     @classmethod
     def _urlName(cls):
         return {urlNameStr}\
-    {methods}{childClasses}\
+    {schemaInResponseGetters}{methods}{childClasses}\
 """
 
 _variableEndpointTemplate = """\
@@ -66,7 +66,7 @@ class {name}(pyblitz.VariableEndpoint):
     @classmethod
     def _urlName(cls):
         return str(pathValue)\
-    {methods}{childClasses}\
+    {schemaInResponseGetters}{methods}{childClasses}\
 """
 
 # renaming `pathValueName` allows __new__() calls to show actual argument names
@@ -85,7 +85,7 @@ class {name}(pyblitz.ExpressionEndpoint):
     @classmethod
     def _urlName(cls):
         return {urlNameStr}\
-    {methods}{childClasses}\
+    {schemaInResponseGetters}{methods}{childClasses}\
 """
 
 _endpointMethodTemplate_noData = """\
@@ -100,6 +100,24 @@ _endpointMethodTemplate_full = """\
 def {method}(cls, data, *args, headers=dict(), **params) -> pyblitz.http.Response:
     \"""{desc}\"""
     return pyblitz.http.{method}(cls, data, *args, headers=headers, **params)\
+"""
+
+_endpointSchemaInResponseGettersTemplate = """\
+@classmethod
+def _schemaInDELETEResponseJson(cls):
+    return {schemaInResponseDELETE}
+@classmethod
+def _schemaInGETResponseJson(cls):
+    return {schemaInResponseGET}
+@classmethod
+def _schemaInPATCHResponseJson(cls):
+    return {schemaInResponsePATCH}
+@classmethod
+def _schemaInPOSTResponseJson(cls):
+    return {schemaInResponsePOST}
+@classmethod
+def _schemaInPUTResponseJson(cls):
+    return {schemaInResponsePUT}\
 """
 
 _schemaGlobals = """\
@@ -214,12 +232,15 @@ class _EndpointWriter:
 
         parentRef = self._genParentsFromExprAncestorStr(endpoint)
 
+        schemaInResponseGetters = self._indent(self._methodSep + self._genSchemaInResponseGettersStr(endpoint))
+
         return _fixedEndpointTemplate.format(
             name=endpoint.className,
             parentRef=parentRef,
             urlNameStr=f"'{endpoint.pathName}'",
             methods=endpointMethodStrs,
             childClasses=childClassesCode,
+            schemaInResponseGetters=schemaInResponseGetters,
         )
 
     def _genExpressionEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
@@ -258,6 +279,8 @@ class _EndpointWriter:
             )]
         ))
 
+        schemaInResponseGetters = self._indent(self._methodSep + self._genSchemaInResponseGettersStr(endpoint))
+
         return _expressionEndpointTemplate.format(
             name=endpoint.className,
             parentRef=parentRef,
@@ -268,6 +291,7 @@ class _EndpointWriter:
             methodSep=self._methodSep,
             methods=endpointMethodStrs,
             childClasses=childClassesCode,
+            schemaInResponseGetters=schemaInResponseGetters,
         )
 
     def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
@@ -288,12 +312,55 @@ class _EndpointWriter:
 
         parentRef = self._genParentsFromExprAncestorStr(endpoint)
 
+        schemaInResponseGetters = self._indent(self._methodSep + self._genSchemaInResponseGettersStr(endpoint))
+
         return _variableEndpointTemplate.format(
             name=endpoint.className,
             parentRef=parentRef,
             methods=endpointMethodStrs,
             childClasses=childClassesCode,
+            schemaInResponseGetters=schemaInResponseGetters,
         )
+
+    def _genSchemaInResponseGettersStr(self, endpoint: Parser.Endpoint):
+        methodGet = None
+        methodDelete = None
+        methodPatch = None
+        methodPost = None
+        methodPut = None
+        for method in endpoint.methods:
+            if method.name == "get":
+                methodGet = method
+            elif method.name == "delete":
+                methodDelete = method
+            elif method.name == "patch":
+                methodPatch = method
+            elif method.name == "post":
+                methodPost = method
+            elif method.name == "put":
+                methodPut = method
+
+        return _endpointSchemaInResponseGettersTemplate.format(
+            schemaInResponseGET=self._genSchemaInResponseStr(methodGet),
+            schemaInResponseDELETE=self._genSchemaInResponseStr(methodDelete),
+            schemaInResponsePATCH=self._genSchemaInResponseStr(methodPatch),
+            schemaInResponsePOST=self._genSchemaInResponseStr(methodPost),
+            schemaInResponsePUT=self._genSchemaInResponseStr(methodPut),
+        )
+
+    def _genSchemaInResponseStr(self, method: Parser.Method):
+        if method is not None:
+            schemaPathsMap = dict()
+            for (responseCode, jsonPathKeys, schemaClassRefStr) in method.allSchemaInResponseJson():
+                if responseCode not in schemaPathsMap:
+                    schemaPathsMap[responseCode] = dict()
+                schemaPathsMapForCode = schemaPathsMap[responseCode]
+                schemaPathsMapForCode[jsonPathKeys] = f"<{schemaClassRefStr}>"
+            schemaInResponseStr = re.sub(r"'\<(?P<class>.*?)\>'", r"\g<class>", f"{schemaPathsMap}")
+            return schemaInResponseStr
+        else:
+            return "{}"
+
 
     def _genSchema(self, schema: Iterable[Parser.Schema]) -> str:
         return "".join(

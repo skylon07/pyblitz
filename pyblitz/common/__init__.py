@@ -26,6 +26,42 @@ class Endpoint(ABC):
             yield currEndpoint._urlName()
             currEndpoint = currEndpoint._parentEndpoint()
 
+    @classmethod
+    def schemaInResponseJson(cls, method):
+        if method == "DELETE":
+            return cls._schemaInDELETEResponseJson()
+        elif method == "GET":
+            return cls._schemaInGETResponseJson()
+        elif method == "PATCH":
+            return cls._schemaInPATCHResponseJson()
+        elif method == "POST":
+            return cls._schemaInPOSTResponseJson()
+        elif method == "PUT":
+            return cls._schemaInPUTResponseJson()
+        else:
+            raise AssertionError("Invalid/unconsidered method for schemaInResponseJson()")
+
+    @abstractclassmethod
+    def _schemaInDELETEResponseJson(cls):
+        return # a dict mapping json keys (as a tuple) to schema in DELETE responses
+
+    @abstractclassmethod
+    def _schemaInGETResponseJson(cls):
+        return # a dict mapping json keys (as a tuple) to schema in GET responses
+
+    @abstractclassmethod
+    def _schemaInPATCHResponseJson(cls):
+        return # a dict mapping json keys (as a tuple) to schema in PATCH responses
+
+    @abstractclassmethod
+    def _schemaInPOSTResponseJson(cls):
+        return # a dict mapping json keys (as a tuple) to schema in POST responses
+
+    @abstractclassmethod
+    def _schemaInPUTResponseJson(cls):
+        return # a dict mapping json keys (as a tuple) to schema in PUT responses
+
+
 class FixedEndpoint(Endpoint, ABC):
     def __new__(cls, NOT_EXPRESSION_ENDPOINT):
         raise RuntimeError("FixedEndpoints cannot be invoked")

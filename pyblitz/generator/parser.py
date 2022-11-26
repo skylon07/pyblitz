@@ -81,6 +81,10 @@ class Parser(ABC):
             endpoint = childEndpoint
         endpoint.addMethod(method)
 
+    def _recordResponseSchema(self, method: 'Parser.Method', responseCodeStr, jsonPathTuple, schemaClassRefStr):
+        responseCodeInt = int(responseCodeStr)
+        method.addSchemaToResponseJson(responseCodeInt, jsonPathTuple, schemaClassRefStr)
+
     def _recordSchemaProperty(self, schemaName, schemaDesc, prop):
         assert type(schemaName) is str
         assert type(schemaDesc) is str
@@ -202,6 +206,7 @@ class Parser(ABC):
 
             self._name = name
             self._desc = desc
+            self._responseSchema = dict()
 
         @property
         def name(self) -> str:
@@ -210,6 +215,17 @@ class Parser(ABC):
         @property
         def desc(self) -> str:
             return self._desc
+
+        def addSchemaToResponseJson(self, responseCode: int, jsonPathTuple: tuple[str], schemaClassRefStr: str):
+            if responseCode not in self._responseSchema:
+                self._responseSchema[responseCode] = dict()
+            responseJsonSchema = self._responseSchema[responseCode]
+            responseJsonSchema[jsonPathTuple] = schemaClassRefStr
+
+        def allSchemaInResponseJson(self) -> Iterable[tuple[int, tuple[str], str]]:
+            for (responseCode, schemaPathMap) in self._responseSchema.items():
+                for (schemaPath, schemaClassRefStr) in schemaPathMap.items():
+                    yield (responseCode, schemaPath, schemaClassRefStr)
 
 
     class Schema:
@@ -277,6 +293,11 @@ class Parser_3_1_0(Parser):
             url = server['url']
             server = Parser.Server(name, url, f"Your description for '{name}' here")
             self._recordServer(server)
+        
+        for (schemaName, schemaData) in jsonDict['components']['schemas'].items():
+            for (propName, propData) in schemaData['properties'].items():
+                prop = Parser.SchemaProperty(propName, propData.get('description', ""))
+                self._recordSchemaProperty(schemaName, schemaData.get('description', ""), prop)
 
         for (pathUrl, path) in jsonDict['paths'].items():
             for (method, methodData) in path.items():
@@ -285,10 +306,57 @@ class Parser_3_1_0(Parser):
                     method = Parser.Method(method, self._genEndpointDesc(methodData))
                     self._recordMethod(pathUrl, method)
 
-        for (schemaName, schemaData) in jsonDict['components']['schemas'].items():
-            for (propName, propData) in schemaData['properties'].items():
-                prop = Parser.SchemaProperty(propName, propData.get('description', ""))
-                self._recordSchemaProperty(schemaName, schemaData.get('description', ""), prop)
+                    for (responseCode, responseData) in methodData['responses'].items():
+                        def scanResponseDataWithContext(jsonKeyPath, jsonValue, jsonDict):
+                            self._scanResponseData(jsonKeyPath, jsonValue, jsonDict, method, responseCode)
+                        self._scanOpenApiObjectLayer(tuple(), responseData, jsonDict, scanResponseDataWithContext)
+
+    def _scanOpenApiObjectLayer(self, jsonKeyPath, object, jsonDict, callbackForEachKey):
+        isRef = len(jsonKeyPath) > 0 and jsonKeyPath[-1] == "$ref"
+        if isRef:
+            refPathList = object.split("/")
+            refPathList_skippingHash = refPathList[1:]
+            nextObject = jsonDict
+            for pathKey in refPathList_skippingHash:
+                nextObject = nextObject[pathKey]
+            refType = refPathList[2]
+            if refType == "schemas":
+                nextObject = nextObject['properties']
+            elif refType == "responses":
+                nextObject = nextObject \
+                    .get('content', {}) \
+                    .get('application/json', {}) \
+                    .get('schema', {}) \
+                    .get('properties')
+                if nextObject is None:
+                    return
+            else:
+                raise AssertionError("scanning api object revealed an unconsidered $ref type")
+        else:
+            nextObject = object
+        
+        if type(nextObject) in (dict, list):
+            if type(nextObject) is dict:
+                nextObjectIter = nextObject.items()
+            else:
+                nextObjectIter = enumerate(nextObject)
+            for (jsonKey, jsonValue) in nextObjectIter:
+                nextJsonKeyPath = jsonKeyPath + (jsonKey,)
+                callbackForEachKey(nextJsonKeyPath, jsonValue, jsonDict)
+
+    def _scanResponseData(self, jsonKeyPath, jsonValue, jsonDict, method, responseCode):
+        lastJsonKey = jsonKeyPath[-1]
+        if lastJsonKey == '$ref':
+            refPathList = jsonValue.split("/")
+            refType = refPathList[2]
+            if refType == "schemas":
+                schemaClassRefStr = refPathList[-1]
+                self._recordResponseSchema(method, responseCode, jsonKeyPath, schemaClassRefStr)
+                return
+        
+        def scanResponseDataWithContext(jsonKeyPath, jsonValue, jsonDict):
+            self._scanResponseData(jsonKeyPath, jsonValue, jsonDict, method, responseCode)
+        self._scanOpenApiObjectLayer(jsonKeyPath, jsonValue, jsonDict, scanResponseDataWithContext)
 
     def _genEndpointDesc(self, methodData):
         summary = methodData['summary']

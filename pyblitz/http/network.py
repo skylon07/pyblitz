@@ -69,7 +69,7 @@ def DELETE(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     request = Request.Delete(fullUrl)
     request.load(data, headers, params)
     httpResponse = request.send()
-    return Response(httpResponse)
+    return Response(httpResponse, endpoint.schemaInResponseJson("DELETE"))
 
 @_authenticated
 def GET(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
@@ -78,7 +78,7 @@ def GET(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     request = Request.Get(fullUrl)
     request.load(data, headers, params)
     httpResponse = request.send()
-    return Response(httpResponse)
+    return Response(httpResponse, endpoint.schemaInResponseJson("GET"))
 
 @_authenticated
 def PATCH(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
@@ -87,7 +87,7 @@ def PATCH(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     request = Request.Patch(fullUrl)
     request.load(data, headers, params)
     httpResponse = request.send()
-    return Response(httpResponse)
+    return Response(httpResponse, endpoint.schemaInResponseJson("PATCH"))
 
 @_authenticated
 def POST(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
@@ -96,7 +96,7 @@ def POST(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     request = Request.Post(fullUrl)
     request.load(data, headers, params)
     httpResponse = request.send()
-    return Response(httpResponse)
+    return Response(httpResponse, endpoint.schemaInResponseJson("POST"))
 
 @_authenticated
 def PUT(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
@@ -105,7 +105,7 @@ def PUT(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     request = Request.Put(fullUrl)
     request.load(data, headers, params)
     httpResponse = request.send()
-    return Response(httpResponse)
+    return Response(httpResponse, endpoint.schemaInResponseJson("PUT"))
 
 def _checkIsEndpoint(endpoint):
     if not issubclass(endpoint, Endpoint):
