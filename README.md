@@ -4,6 +4,7 @@ A scripting-ready python library for your OpenAPI!
 
 ## Table of Contents
 
+- [Installation](#installation)
 - [Quickstart](#quickstart)
 - [Features](#features)
     - [Endpoints](#endpoints)
@@ -13,9 +14,20 @@ A scripting-ready python library for your OpenAPI!
 - [Big Back-to-top Button](#big-back-to-top-button)
 
 
+## Installation
+
+To use `pyblitz`, you can install it as a git module using `pip` or `pipenv`:
+
+```
+pip install -e 'git+https://github.com/skylon07/pyblitz.git@main#egg=pyblitz'
+```
+
+
 ## Quickstart
 
-This code snippet is all you need to perform any number of pyblitz requests through your [generated api](#generation).
+Follow the [installation instructions](#installation) above.
+
+This code snippet is all you need to perform any number of `pyblitz` requests through your [generated api](#generation).
 
 ``` 
 import api as myApi # the generated api.py file
