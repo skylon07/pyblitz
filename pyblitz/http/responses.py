@@ -32,8 +32,6 @@ class Response:
                 if path != "$ref"
             ]
             for pathKey in validPathsList[:-1]:
-                isValidPathKey = pathKey != "$ref"
-                if isValidPathKey:
-                    dictToModify = dictToModify[pathKey]
+                dictToModify = dictToModify[pathKey]
             lastPath = validPathsList[-1]
             dictToModify[lastPath] = schemaClass.fromSerialized(dictToModify[lastPath])
