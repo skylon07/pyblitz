@@ -29,36 +29,36 @@ class Endpoint(ABC):
     @classmethod
     def schemaInResponseJson(cls, method):
         if method == "DELETE":
-            return cls._schemaInDELETEResponseJson()
+            return cls._schemaInDeleteResponseJson()
         elif method == "GET":
-            return cls._schemaInGETResponseJson()
+            return cls._schemaInGetResponseJson()
         elif method == "PATCH":
-            return cls._schemaInPATCHResponseJson()
+            return cls._schemaInPatchResponseJson()
         elif method == "POST":
-            return cls._schemaInPOSTResponseJson()
+            return cls._schemaInPostResponseJson()
         elif method == "PUT":
-            return cls._schemaInPUTResponseJson()
+            return cls._schemaInPutResponseJson()
         else:
             raise AssertionError("Invalid/unconsidered method for schemaInResponseJson()")
 
     @abstractclassmethod
-    def _schemaInDELETEResponseJson(cls):
+    def _schemaInDeleteResponseJson(cls):
         return # a dict mapping json keys (as a tuple) to schema in DELETE responses
 
     @abstractclassmethod
-    def _schemaInGETResponseJson(cls):
+    def _schemaInGetResponseJson(cls):
         return # a dict mapping json keys (as a tuple) to schema in GET responses
 
     @abstractclassmethod
-    def _schemaInPATCHResponseJson(cls):
+    def _schemaInPatchResponseJson(cls):
         return # a dict mapping json keys (as a tuple) to schema in PATCH responses
 
     @abstractclassmethod
-    def _schemaInPOSTResponseJson(cls):
+    def _schemaInPostResponseJson(cls):
         return # a dict mapping json keys (as a tuple) to schema in POST responses
 
     @abstractclassmethod
-    def _schemaInPUTResponseJson(cls):
+    def _schemaInPutResponseJson(cls):
         return # a dict mapping json keys (as a tuple) to schema in PUT responses
 
 

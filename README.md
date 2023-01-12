@@ -46,7 +46,7 @@ user = myApi.User(
 user.name = "Sam Roberts"
 
 # call api endpoints
-myApi.users.register.POST(user)
+myApi.users.register.post(user)
 
 # create models (from responses)
 # assuming GET myApi/users/{userId}/friends returns:
@@ -54,7 +54,7 @@ myApi.users.register.POST(user)
     friends: [{name: ..., id: ...}, ...],
     user: {name: ..., id: ...}
 # }
-friendsResponse = myApi.users(user.id).friends.GET()
+friendsResponse = myApi.users(user.id).friends.get()
 userFromResponse = friendsResponse['user']
 firstFriend = friendsResponse['friends'][0]
 print(userFromResponse.name)    # Sam Roberts
@@ -75,18 +75,18 @@ Easy, no?
 ```
 import api as myApi
 
-myApi.my.endpoint.name.GET()
+myApi.my.endpoint.name.get()
 ```
 
 (Psst. If you're *actually* trying these examples and notice a `RuntimeError: Cannot make network requests until...` error, [check here](#configuring-http) before continuing.)
 
-Data is passed as the first argument for all methods except `GET` and `DELETE`. If you need to pass headers or parameters, you can do so with keyword arguments. You can also still pass data to `GET` and `DELETE` through the `data` keyword argument.
+Data is passed as the first argument for all methods except `get` and `delete`. If you need to pass headers or parameters, you can do so with keyword arguments. You can also still pass data to `get` and `delete` through the `data` keyword argument.
 
 ```
 import api as myApi
 
 # `data` can be a `dict()`, `Schema`, byte string/array, etc.
-myApi.my.endpoint.name.POST(
+myApi.my.endpoint.name.post(
     data,
     headers=dict(),
     param1="query",
@@ -102,8 +102,8 @@ simply by calling the parent endpoint as a function of the parameter.
 import api as myApi
 
 userId = 12345
-# GETs the /users/{userId}/friends endpoint
-pyblitzResponse = myApi.users(userId).friends.GET()
+# gets the /users/{userId}/friends endpoint
+pyblitzResponse = myApi.users(userId).friends.get()
 ```
 
 ### Schema
@@ -117,7 +117,7 @@ createdUser = myApi.User()
 createdUser.name = "Jake McDonald"
 createdUser.id = 12345
 
-pyblitzResponse = myApi.some.user.endpoint.GET()
+pyblitzResponse = myApi.some.user.endpoint.get()
 userFromResponse = pyblitzResponse['json']['path']['to']['user']
 assert type(userFromResponse) is myApi.User
 userFromResponseTransform = pyblitzResponse.transform(customTransformFn)
@@ -145,7 +145,7 @@ Once `Schema` are created, they can be sent directly into the endpoints' http me
 import api as myApi
 
 user.name = "NEW NAME"
-pyblitzResponse = myApi.some.endpoint.PATCH({'user': user})
+pyblitzResponse = myApi.some.endpoint.patch({'user': user})
 # assuming this endpoint returns the user after patching...
 # {
 #   user: {name: ..., id: ...}
@@ -166,8 +166,8 @@ user.id = 35764
 user.extraData = "this will ultimately be ignored"
 
 user.serialFilter('name', 'id')
-# PATCH sends: {'name': user.name, 'id': user.id}
-pyblitzResponse = myApi.some.endpoint.PATCH({'user': user})
+# patch sends: {'name': user.name, 'id': user.id}
+pyblitzResponse = myApi.some.endpoint.patch({'user': user})
 # reset the filter, if desired
 user.serialFilter()
 ```
@@ -201,7 +201,7 @@ import api as myApi
 user = myApi.User()
 user.name = "Henry Evans"
 user.id = 753146
-myApi.http.POST(
+myApi.http.post(
     "https://my.api.website.com/users",
     user,
     headers=dict(),
