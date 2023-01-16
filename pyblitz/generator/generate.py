@@ -104,20 +104,20 @@ def {method}(cls, data, *args, headers=dict(), **params) -> pyblitz.http.Respons
 
 _endpointSchemaInResponseGettersTemplate = """\
 @classmethod
-def _schemaInDELETEResponseJson(cls):
-    return {schemaInResponseDELETE}
+def _schemaInDeleteResponseJson(cls):
+    return {schemaInResponseDelete}
 @classmethod
-def _schemaInGETResponseJson(cls):
-    return {schemaInResponseGET}
+def _schemaInGetResponseJson(cls):
+    return {schemaInResponseGet}
 @classmethod
-def _schemaInPATCHResponseJson(cls):
-    return {schemaInResponsePATCH}
+def _schemaInPatchResponseJson(cls):
+    return {schemaInResponsePatch}
 @classmethod
-def _schemaInPOSTResponseJson(cls):
-    return {schemaInResponsePOST}
+def _schemaInPostResponseJson(cls):
+    return {schemaInResponsePost}
 @classmethod
-def _schemaInPUTResponseJson(cls):
-    return {schemaInResponsePUT}\
+def _schemaInPutResponseJson(cls):
+    return {schemaInResponsePut}\
 """
 
 _schemaGlobals = """\
@@ -225,7 +225,7 @@ class _EndpointWriter:
                 else _endpointMethodTemplate_full
             ]
             for methodStr in [methodTemplate.format(
-                method=method.name.upper(),
+                method=method.name,
                 desc=method.desc,
             )]
         ))
@@ -274,7 +274,7 @@ class _EndpointWriter:
                 else _endpointMethodTemplate_full
             ]
             for methodStr in [methodTemplate.format(
-                method=method.name.upper(),
+                method=method.name,
                 desc=method.desc,
             )]
         ))
@@ -305,7 +305,7 @@ class _EndpointWriter:
                 else _endpointMethodTemplate_full
             ]
             for methodStr in [methodTemplate.format(
-                method=method.name.upper(),
+                method=method.name,
                 desc=method.desc,
             )]
         ))
@@ -341,11 +341,11 @@ class _EndpointWriter:
                 methodPut = method
 
         return _endpointSchemaInResponseGettersTemplate.format(
-            schemaInResponseGET=self._genSchemaInResponseStr(methodGet),
-            schemaInResponseDELETE=self._genSchemaInResponseStr(methodDelete),
-            schemaInResponsePATCH=self._genSchemaInResponseStr(methodPatch),
-            schemaInResponsePOST=self._genSchemaInResponseStr(methodPost),
-            schemaInResponsePUT=self._genSchemaInResponseStr(methodPut),
+            schemaInResponseGet=self._genSchemaInResponseStr(methodGet),
+            schemaInResponseDelete=self._genSchemaInResponseStr(methodDelete),
+            schemaInResponsePatch=self._genSchemaInResponseStr(methodPatch),
+            schemaInResponsePost=self._genSchemaInResponseStr(methodPost),
+            schemaInResponsePut=self._genSchemaInResponseStr(methodPut),
         )
 
     def _genSchemaInResponseStr(self, method: Parser.Method):

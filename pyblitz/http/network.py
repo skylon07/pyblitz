@@ -63,7 +63,7 @@ def _authenticated(fn):
 
 
 @_authenticated
-def DELETE(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
+def delete(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Delete(fullUrl)
@@ -72,7 +72,7 @@ def DELETE(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     return Response(httpResponse, endpoint.schemaInResponseJson("DELETE"))
 
 @_authenticated
-def GET(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
+def get(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Get(fullUrl)
@@ -81,7 +81,7 @@ def GET(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     return Response(httpResponse, endpoint.schemaInResponseJson("GET"))
 
 @_authenticated
-def PATCH(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
+def patch(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Patch(fullUrl)
@@ -90,7 +90,7 @@ def PATCH(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     return Response(httpResponse, endpoint.schemaInResponseJson("PATCH"))
 
 @_authenticated
-def POST(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
+def post(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Post(fullUrl)
@@ -99,7 +99,7 @@ def POST(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     return Response(httpResponse, endpoint.schemaInResponseJson("POST"))
 
 @_authenticated
-def PUT(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
+def put(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     _checkIsEndpoint(endpoint)
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Put(fullUrl)
