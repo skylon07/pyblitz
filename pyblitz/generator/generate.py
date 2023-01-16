@@ -26,6 +26,7 @@ def generateAPI(ParserClass: Parser, openApiFilePath: str, apiOutputPath: str):
 
 
 _imports = """\
+from typing import Any
 import pyblitz
 
 http = pyblitz.http
@@ -133,9 +134,9 @@ class {name}(pyblitz.Schema):
     \"""{desc}\"""
     _propNames = {propDefNames}\
     {methodSep}\
-    def __init__(self):
+    def __init__(self, {propDefsParams}):
         super().__init__()
-        {propDefs}\
+        {propDefsAssignments}\
     {methodSep}\
     def _serialize(self):
         serialDict = {{
@@ -153,8 +154,12 @@ class {name}(pyblitz.Schema):
             self.__dict__[propName] = propVal\
 """
 
-_propTemplate = """\
-self.{name} = pyblitz.Schema.NoProp
+_propParamTemplate = """\
+{name}: Any = pyblitz.Schema.NoProp, \
+"""
+
+_propAsssignmentTemplate = """\
+self.{name} = {name}
 \"""{desc}\"""\
 """
 
@@ -370,10 +375,15 @@ class _EndpointWriter:
         )
 
     def _genSchemaModel(self, model: Parser.Schema) -> str:
-        propDefsStr = self._indent("\n".join(
+        propDefsParamsStr = self._indent("\n".join(
             propCode
             for prop in model.props
-            for propCode in [self._genProp(prop)]
+            for propCode in [_propParamTemplate.format(name=prop.name, desc=prop.desc)]
+        ), 2)
+        propDefsAssignmentsStr = self._indent("\n".join(
+            propCode
+            for prop in model.props
+            for propCode in [_propAsssignmentTemplate.format(name=prop.name, desc=prop.desc)]
         ), 2)
 
         propDefNames = {
@@ -384,15 +394,10 @@ class _EndpointWriter:
         return _schemaTemplate.format(
             name=model.name,
             desc=model.desc,
-            propDefs=propDefsStr,
+            propDefsParams=propDefsParamsStr,
+            propDefsAssignments=propDefsAssignmentsStr,
             propDefNames=propDefNames,
             methodSep=self._methodSep,
-        )
-
-    def _genProp(self, prop: Parser.SchemaProperty) -> str:
-        return _propTemplate.format(
-            name=prop.name,
-            desc=prop.desc,
         )
 
     def _indent(self, code: str, indentLevel: int = 1) -> str:
