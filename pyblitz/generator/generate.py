@@ -30,12 +30,12 @@ from typing import Any
 import pyblitz
 
 http = pyblitz.http
-Schema = pyblitz.common.Schema\
+Schema = pyblitz.common.Schema
+NoProp = Schema.NoProp\
 """
 
-_registerServerTemplate = """\
-pyblitz.http.registerServer("{name}", "{url}", "{desc}")\
-"""
+def _useRegisterServerTemplate(*args, serverName, serverUrl, serverDesc):
+    return f'pyblitz.http.registerServer("{serverName}", "{serverUrl}", "{serverDesc}")'
 
 _endpointGlobals = """\
 #############
@@ -48,78 +48,83 @@ _endpointGlobals = """\
 # as a general rule of thumb, each template should not start or
 # end with whitespace; template variables also should NOT include
 # newlines; think "if this variable wasn't here, do I want a newline?"
-_fixedEndpointTemplate = """\
-class {name}(pyblitz.FixedEndpoint):
-    @classmethod
-    def _parentEndpoint(cls):
-        return {parentRef}
-    @classmethod
-    def _urlName(cls):
-        return {urlNameStr}\
-    {schemaInResponseGetters}{methods}{childClasses}\
-"""
+def _useFixedEndpointTemplate(*args, endpointName, parentRef, urlNameStr, schemaInResponseGettersCode, methodsCode, childClassesCode):
+    return (
+        f'class {endpointName}(pyblitz.FixedEndpoint):\n'
+        f'    @classmethod\n'
+        f'    def _parentEndpoint(cls):\n'
+        f'        return {parentRef}\n'
+        f'    @classmethod\n'
+        f'    def _urlName(cls):\n'
+        f'        return {urlNameStr}'
+        f'    {schemaInResponseGettersCode}{methodsCode}{childClassesCode}'
+    )
 
-_variableEndpointTemplate = """\
-class {name}(pyblitz.VariableEndpoint):
-    @classmethod
-    def _parentEndpoint(cls):
-        return {parentRef}
-    @classmethod
-    def _urlName(cls):
-        return str(pathValue)\
-    {schemaInResponseGetters}{methods}{childClasses}\
-"""
+def _useVariableEndpointTemplate(*args, endpointName, parentRef, schemaInResponseGettersCode, methodsCode, childClassesCode):
+    return (
+        f'class {endpointName}(pyblitz.VariableEndpoint):\n'
+        f'    @classmethod\n'
+        f'    def _parentEndpoint(cls):\n'
+        f'        return {parentRef}\n'
+        f'    @classmethod\n'
+        f'    def _urlName(cls):\n'
+        f'        return str(pathValue)'
+        f'    {schemaInResponseGettersCode}{methodsCode}{childClassesCode}'
+    )
 
-# renaming `pathValueName` allows __new__() calls to show actual argument names
-# while still being able to reference a consistent `pathValue` variable name
-# from the inner VariableEndpoint class
-_expressionEndpointTemplate = """\
-class {name}(pyblitz.ExpressionEndpoint):
-    @classmethod
-    def _parentEndpoint(cls):
-        return {parentRef}
-    def __new__(cls, {pathValueName}):
-        pathValue = {pathValueName}
-        {hardenedClass}\
-        return {hardenedClassName}\
-    {methodSep}\
-    @classmethod
-    def _urlName(cls):
-        return {urlNameStr}\
-    {schemaInResponseGetters}{methods}{childClasses}\
-"""
+def _useExpressionEndpointTemplate(*args, endpointName, parentRef, pathValueName, hardenedClassCode, hardenedClassName, methodSep, urlNameStr, schemaInResponseGettersCode, methodsCode, childClassesCode):
+    return (
+        f'class {endpointName}(pyblitz.ExpressionEndpoint):\n'
+        f'    @classmethod\n'
+        f'    def _parentEndpoint(cls):\n'
+        f'        return {parentRef}\n'
+        f'    def __new__(cls, {pathValueName}):\n'
+                  # renaming `pathValueName` here allows __new__() calls to show actual argument names while
+                  # still being able to reference a consistent `pathValue` variable name from the inner class
+        f'        pathValue = {pathValueName}\n'
+        f'        {hardenedClassCode}'
+        f'        return {hardenedClassName}'
+        f'    {methodSep}'
+        f'    @classmethod\n'
+        f'    def _urlName(cls):\n'
+        f'        return {urlNameStr}'
+        f'    {schemaInResponseGettersCode}{methodsCode}{childClassesCode}'
+    )
 
-_endpointMethodTemplate_noData = """\
-@classmethod
-def {method}(cls, *args, headers=dict(), data=None, **params) -> pyblitz.http.Response:
-    \"""{desc}\"""
-    return pyblitz.http.{method}(cls, *args, headers=headers, data=data, **params)\
-"""
+def _useEndpointMethod_noDataTemplate(*args, methodName, methodDesc):
+    return (
+        f'@classmethod\n'
+        f'def {methodName}(cls, *args, headers = dict(), data = None, **params) -> pyblitz.http.Response:\n'
+        f'    """{methodDesc}"""\n'
+        f'    return pyblitz.http.{methodName}(cls, *args, headers = headers, data = data, **params)'
+    )
 
-_endpointMethodTemplate_full = """\
-@classmethod
-def {method}(cls, data, *args, headers=dict(), **params) -> pyblitz.http.Response:
-    \"""{desc}\"""
-    return pyblitz.http.{method}(cls, data, *args, headers=headers, **params)\
-"""
+def _useEndpointMethod_fullTemplate(*args, methodName, methodDesc):
+    return (
+        f'@classmethod\n'
+        f'def {methodName}(cls, data, *args, headers=dict(), **params) -> pyblitz.http.Response:\n'
+        f'    """{methodDesc}"""\n'
+        f'    return pyblitz.http.{methodName}(cls, data, *args, headers=headers, **params)'
+    )
 
-_endpointSchemaInResponseGettersTemplate = """\
-@classmethod
-def _schemaInDeleteResponseJson(cls):
-    return {schemaInResponseDelete}
-@classmethod
-def _schemaInGetResponseJson(cls):
-    return {schemaInResponseGet}
-@classmethod
-def _schemaInPatchResponseJson(cls):
-    return {schemaInResponsePatch}
-@classmethod
-def _schemaInPostResponseJson(cls):
-    return {schemaInResponsePost}
-@classmethod
-def _schemaInPutResponseJson(cls):
-    return {schemaInResponsePut}\
-"""
+def _useEndpointSchemaInResponseGettersTemplate(*args, schemaInResponseDelete, schemaInResponseGet, schemaInResponsePatch, schemaInResponsePost, schemaInResponsePut):
+    return (
+        f'@classmethod\n'
+        f'def _schemaInDeleteResponseJson(cls):\n'
+        f'    return {schemaInResponseDelete}\n'
+        f'@classmethod\n'
+        f'def _schemaInGetResponseJson(cls):\n'
+        f'    return {schemaInResponseGet}\n'
+        f'@classmethod\n'
+        f'def _schemaInPatchResponseJson(cls):\n'
+        f'    return {schemaInResponsePatch}\n'
+        f'@classmethod\n'
+        f'def _schemaInPostResponseJson(cls):\n'
+        f'    return {schemaInResponsePost}\n'
+        f'@classmethod\n'
+        f'def _schemaInPutResponseJson(cls):\n'
+        f'    return {schemaInResponsePut}'
+    )
 
 _schemaGlobals = """\
 ##########
@@ -129,39 +134,40 @@ _schemaGlobals = """\
 # schema base classes are located in the `common` module\
 """
 
-_schemaTemplate = """\
-class {name}(pyblitz.Schema):
-    \"""{desc}\"""
-    _propNames = {propDefNames}\
-    {methodSep}\
-    def __init__(self, {propDefsParams}):
-        super().__init__()
-        {propDefsAssignments}\
-    {methodSep}\
-    def _serialize(self):
-        serialDict = {{
-            propName: propVal
-            for propName in self._propNames
-            for propVal in [self.__dict__[propName]]
-            if propVal is not pyblitz.Schema.NoProp
-        }}
-        return serialDict\
-    {methodSep}\
-    def _loadJsonDict(self, jsonDict):
-        for (propName, propVal) in jsonDict.items():
-            if propName not in self._propNames:
-                raise KeyError(f"Unknown property '{{propName}}' found when loading Schema")
-            self.__dict__[propName] = propVal\
-"""
+def _useSchemaTemplate(*args, schemaName, schemaDesc, propDefNames, methodSep, propDefsParams, propDefsAssignments):
+    return (
+        f'class {schemaName}(pyblitz.Schema):\n'
+        f'    """{schemaDesc}"""\n'
+        f'    _propNames = {propDefNames}'
+        f'    {methodSep}'
+        f'    def __init__(self, {propDefsParams}):\n'
+        f'        super().__init__()\n'
+        f'        {propDefsAssignments}'
+        f'    {methodSep}'
+        f'    def _serialize(self):\n'
+        f'        serialDict = {{\n'
+        f'            propName: propVal\n'
+        f'            for propName in self._propNames\n'
+        f'            for propVal in [self.__dict__[propName]]\n'
+        f'            if propVal is not pyblitz.Schema.NoProp\n'
+        f'        }}\n'
+        f'        return serialDict'
+        f'    {methodSep}'
+        f'    def _loadJsonDict(self, jsonDict):\n'
+        f'        for (propName, propVal) in jsonDict.items():\n'
+        f'            if propName not in self._propNames:\n'
+        f'                raise KeyError(f"Unknown property \'{{propName}}\' found when loading Schema")\n'
+        f'            self.__dict__[propName] = propVal'
+    )
 
-_propParamTemplate = """\
-{name}: Any = pyblitz.Schema.NoProp, \
-"""
+def _usePropParamTemplate(*args, propName):
+    return f'{propName}: Any = NoProp, '
 
-_propAsssignmentTemplate = """\
-self.{name} = {name}
-\"""{desc}\"""\
-"""
+def _usePropAssignmentTemplate(*args, propName, propDesc):
+    return (
+        f'self.{propName} = {propName}\n'
+        f'"""{propDesc}"""'
+    )
 
 
 class _EndpointWriter:
@@ -194,7 +200,11 @@ class _EndpointWriter:
         registerFnsCode = self._classSep + "\n".join(
             serverRegisterCode
             for server in servers
-            for serverRegisterCode in [_registerServerTemplate.format(name=server.name, url=server.url, desc=server.desc)]
+            for serverRegisterCode in [_useRegisterServerTemplate(
+                serverName = server.name,
+                serverUrl = server.url,
+                serverDesc = server.desc,
+            )]
         )
         self._file.write(registerFnsCode + self._classSep)
 
@@ -225,13 +235,13 @@ class _EndpointWriter:
         endpointMethodStrs = self._indent("".join(
             self._methodSep + methodStr
             for method in endpoint.methods
-            for methodTemplate in [
-                _endpointMethodTemplate_noData if method.name in ("get", "delete")
-                else _endpointMethodTemplate_full
+            for methodTemplateFn in [
+                _useEndpointMethod_noDataTemplate if method.name in ("get", "delete")
+                else _useEndpointMethod_fullTemplate
             ]
-            for methodStr in [methodTemplate.format(
-                method=method.name,
-                desc=method.desc,
+            for methodStr in [methodTemplateFn(
+                methodName = method.name,
+                methodDesc = method.desc,
             )]
         ))
 
@@ -239,13 +249,13 @@ class _EndpointWriter:
 
         schemaInResponseGetters = self._indent(self._methodSep + self._genSchemaInResponseGettersStr(endpoint))
 
-        return _fixedEndpointTemplate.format(
-            name=endpoint.className,
-            parentRef=parentRef,
-            urlNameStr=f"'{endpoint.pathName}'",
-            methods=endpointMethodStrs,
-            childClasses=childClassesCode,
-            schemaInResponseGetters=schemaInResponseGetters,
+        return _useFixedEndpointTemplate(
+            endpointName = endpoint.className,
+            parentRef = parentRef,
+            urlNameStr = f'"{endpoint.pathName}"',
+            methodsCode = endpointMethodStrs,
+            childClassesCode = childClassesCode,
+            schemaInResponseGettersCode = schemaInResponseGetters,
         )
 
     def _genExpressionEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
@@ -274,29 +284,29 @@ class _EndpointWriter:
         endpointMethodStrs = self._indent("".join(
             self._methodSep + methodStr
             for method in endpoint.methods
-            for methodTemplate in [
-                _endpointMethodTemplate_noData if method.name in ("get", "delete")
-                else _endpointMethodTemplate_full
+            for methodTemplateFn in [
+                _useEndpointMethod_noDataTemplate if method.name in ("get", "delete")
+                else _useEndpointMethod_fullTemplate
             ]
-            for methodStr in [methodTemplate.format(
-                method=method.name,
-                desc=method.desc,
+            for methodStr in [methodTemplateFn(
+                methodName = method.name,
+                methodDesc = method.desc,
             )]
         ))
 
         schemaInResponseGetters = self._indent(self._methodSep + self._genSchemaInResponseGettersStr(endpoint))
 
-        return _expressionEndpointTemplate.format(
-            name=endpoint.className,
-            parentRef=parentRef,
-            urlNameStr=f"'{endpoint.pathName}'",
-            pathValueName=varEndpointName,
-            hardenedClass=varEndpointCode,
-            hardenedClassName=varEndpointName,
-            methodSep=self._methodSep,
-            methods=endpointMethodStrs,
-            childClasses=childClassesCode,
-            schemaInResponseGetters=schemaInResponseGetters,
+        return _useExpressionEndpointTemplate(
+            endpointName = endpoint.className,
+            parentRef = parentRef,
+            urlNameStr = f"'{endpoint.pathName}'",
+            pathValueName = varEndpointName,
+            hardenedClassCode = varEndpointCode,
+            hardenedClassName = varEndpointName,
+            methodSep = self._methodSep,
+            methodsCode = endpointMethodStrs,
+            childClassesCode = childClassesCode,
+            schemaInResponseGettersCode = schemaInResponseGetters,
         )
 
     def _genVariableEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
@@ -305,13 +315,13 @@ class _EndpointWriter:
         endpointMethodStrs = self._indent("".join(
             self._methodSep + methodStr
             for method in endpoint.methods
-            for methodTemplate in [
-                _endpointMethodTemplate_noData if method.name in ("get", "delete")
-                else _endpointMethodTemplate_full
+            for methodTemplateFn in [
+                _useEndpointMethod_noDataTemplate if method.name in ("get", "delete")
+                else _useEndpointMethod_fullTemplate
             ]
-            for methodStr in [methodTemplate.format(
-                method=method.name,
-                desc=method.desc,
+            for methodStr in [methodTemplateFn(
+                methodName = method.name,
+                methodDesc = method.desc,
             )]
         ))
 
@@ -319,12 +329,12 @@ class _EndpointWriter:
 
         schemaInResponseGetters = self._indent(self._methodSep + self._genSchemaInResponseGettersStr(endpoint))
 
-        return _variableEndpointTemplate.format(
-            name=endpoint.className,
-            parentRef=parentRef,
-            methods=endpointMethodStrs,
-            childClasses=childClassesCode,
-            schemaInResponseGetters=schemaInResponseGetters,
+        return _useVariableEndpointTemplate(
+            endpointName = endpoint.className,
+            parentRef = parentRef,
+            methodsCode = endpointMethodStrs,
+            childClassesCode = childClassesCode,
+            schemaInResponseGettersCode = schemaInResponseGetters,
         )
 
     def _genSchemaInResponseGettersStr(self, endpoint: Parser.Endpoint):
@@ -345,12 +355,12 @@ class _EndpointWriter:
             elif method.name == "put":
                 methodPut = method
 
-        return _endpointSchemaInResponseGettersTemplate.format(
-            schemaInResponseGet=self._genSchemaInResponseStr(methodGet),
-            schemaInResponseDelete=self._genSchemaInResponseStr(methodDelete),
-            schemaInResponsePatch=self._genSchemaInResponseStr(methodPatch),
-            schemaInResponsePost=self._genSchemaInResponseStr(methodPost),
-            schemaInResponsePut=self._genSchemaInResponseStr(methodPut),
+        return _useEndpointSchemaInResponseGettersTemplate(
+            schemaInResponseGet = self._genSchemaInResponseStr(methodGet),
+            schemaInResponseDelete = self._genSchemaInResponseStr(methodDelete),
+            schemaInResponsePatch = self._genSchemaInResponseStr(methodPatch),
+            schemaInResponsePost = self._genSchemaInResponseStr(methodPost),
+            schemaInResponsePut = self._genSchemaInResponseStr(methodPut),
         )
 
     def _genSchemaInResponseStr(self, method: Parser.Method):
@@ -375,15 +385,20 @@ class _EndpointWriter:
         )
 
     def _genSchemaModel(self, model: Parser.Schema) -> str:
-        propDefsParamsStr = self._indent("\n".join(
+        propDefsParamsStr = self._indent("\n" + "\n".join(
             propCode
             for prop in model.props
-            for propCode in [_propParamTemplate.format(name=prop.name, desc=prop.desc)]
-        ), 2)
+            for propCode in [_usePropParamTemplate(
+                propName = prop.name,
+            )]
+        ), 2) + self._indent("\n", 1)
         propDefsAssignmentsStr = self._indent("\n".join(
             propCode
             for prop in model.props
-            for propCode in [_propAsssignmentTemplate.format(name=prop.name, desc=prop.desc)]
+            for propCode in [_usePropAssignmentTemplate(
+                propName = prop.name,
+                propDesc = prop.desc,
+            )]
         ), 2)
 
         propDefNames = {
@@ -391,13 +406,13 @@ class _EndpointWriter:
             for prop in model.props
         }
 
-        return _schemaTemplate.format(
-            name=model.name,
-            desc=model.desc,
-            propDefsParams=propDefsParamsStr,
-            propDefsAssignments=propDefsAssignmentsStr,
-            propDefNames=propDefNames,
-            methodSep=self._methodSep,
+        return _useSchemaTemplate(
+            schemaName = model.name,
+            schemaDesc = model.desc,
+            propDefNames = propDefNames,
+            propDefsParams = propDefsParamsStr,
+            propDefsAssignments = propDefsAssignmentsStr,
+            methodSep = self._methodSep,
         )
 
     def _indent(self, code: str, indentLevel: int = 1) -> str:
