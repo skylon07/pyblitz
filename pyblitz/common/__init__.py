@@ -118,13 +118,13 @@ class Schema(ABC):
         return # a serialized dict of self
 
     @classmethod
-    def fromSerialized(cls, jsonDict: dict):
+    def fromSerialized(cls, jsonDict: dict, ignoreUnknownKeys = False):
         self = cls()
-        self._loadJsonDict(jsonDict)
+        self._loadJsonDict(jsonDict, ignoreUnknownKeys)
         return self
 
     @abstractmethod
-    def _loadJsonDict(self, jsonDict):
+    def _loadJsonDict(self, jsonDict, looseChecking):
         return # None, but load the jsonDict into class properties
 
 def _convertDashesToCamelCase(string: str):

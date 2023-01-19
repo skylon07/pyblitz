@@ -153,11 +153,12 @@ def _useSchemaTemplate(*args, schemaName, schemaDesc, propDefNames, methodSep, p
         f'        }}\n'
         f'        return serialDict'
         f'    {methodSep}'
-        f'    def _loadJsonDict(self, jsonDict):\n'
+        f'    def _loadJsonDict(self, jsonDict, looseChecking):\n'
         f'        for (propName, propVal) in jsonDict.items():\n'
-        f'            if propName not in self._propNames:\n'
-        f'                raise KeyError(f"Unknown property \'{{propName}}\' found when loading Schema")\n'
-        f'            self.__dict__[propName] = propVal'
+        f'            if propName in self._propNames:\n'
+        f'                self.__dict__[propName] = propVal\n'
+        f'            elif not looseChecking:\n'
+        f'                raise KeyError(f"Unknown property \'{{propName}}\' found when loading Schema")'
     )
 
 def _usePropParamTemplate(*args, propName):
