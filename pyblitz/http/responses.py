@@ -34,4 +34,7 @@ class Response:
             for pathKey in validPathsList[:-1]:
                 dictToModify = dictToModify[pathKey]
             lastPath = validPathsList[-1]
-            dictToModify[lastPath] = schemaClass.fromSerialized(dictToModify[lastPath])
+            try:
+                dictToModify[lastPath] = schemaClass.fromSerialized(dictToModify[lastPath])
+            except KeyError:
+                dictToModify[f'_serialize-{schemaClass.__name__}-failed'] = True
