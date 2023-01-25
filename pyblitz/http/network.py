@@ -3,6 +3,13 @@ from requests import Session
 from ..common import Endpoint
 from .requests import Request
 from .responses import Response
+from .throttler import RequestThrottler
+
+
+_requestThrottler = RequestThrottler()
+
+def throttle(requestRateSecs: int):
+    _requestThrottler.setThrottle(requestRateSecs)
 
 
 class _NetworkState:
@@ -68,7 +75,7 @@ def delete(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Delete(fullUrl)
     request.load(data, headers, params)
-    httpResponse = request.send()
+    httpResponse = _requestThrottler.sendRequest(request)
     return Response(httpResponse, endpoint.schemaInResponseJson("DELETE"))
 
 @_authenticated
@@ -77,7 +84,7 @@ def get(endpoint: Endpoint, headers=dict(), data=None, **params) -> Response:
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Get(fullUrl)
     request.load(data, headers, params)
-    httpResponse = request.send()
+    httpResponse = _requestThrottler.sendRequest(request)
     return Response(httpResponse, endpoint.schemaInResponseJson("GET"))
 
 @_authenticated
@@ -86,7 +93,7 @@ def patch(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Patch(fullUrl)
     request.load(data, headers, params)
-    httpResponse = request.send()
+    httpResponse = _requestThrottler.sendRequest(request)
     return Response(httpResponse, endpoint.schemaInResponseJson("PATCH"))
 
 @_authenticated
@@ -95,7 +102,7 @@ def post(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Post(fullUrl)
     request.load(data, headers, params)
-    httpResponse = request.send()
+    httpResponse = _requestThrottler.sendRequest(request)
     return Response(httpResponse, endpoint.schemaInResponseJson("POST"))
 
 @_authenticated
@@ -104,7 +111,7 @@ def put(endpoint: Endpoint, data, headers=dict(), **params) -> Response:
     fullUrl = _NetworkState.activeServer + endpoint.url()
     request = Request.Put(fullUrl)
     request.load(data, headers, params)
-    httpResponse = request.send()
+    httpResponse = _requestThrottler.sendRequest(request)
     return Response(httpResponse, endpoint.schemaInResponseJson("PUT"))
 
 def _checkIsEndpoint(endpoint):
