@@ -4,14 +4,17 @@ A scripting-ready python library for your OpenAPI!
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Features](#features)
+- [pyblitz](#pyblitz)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Quickstart](#quickstart)
+  - [Features](#features)
     - [Endpoints](#endpoints)
     - [Schema](#schema)
     - [Generation](#generation)
     - [Configuring HTTP](#configuring-http)
-- [Big Back-to-top Button](#big-back-to-top-button)
+    - [Throttling](#throttling)
+  - [Big Back-to-top Button](#big-back-to-top-button)
 
 
 ## Installation
@@ -193,7 +196,7 @@ Please note that you should pass a `Parser` class *reference*, and not an *insta
 
 Before you can actually use any `api.py` endpoints, you must first configure `pyblitz` by using the `http` module. There are two methods in particular that need to be used: `http.setActiveServer()` and `http.setAuth()`. `setActiveServer(name)` takes a `name` string, referencing one of the servers registered at the top of the `api.py` module (names and descriptions can be changed to your liking). `setAuth(token)` takes an authentication `token` string that is added onto all future requests you make.
 
-This module also provides HTTP request functions should you decide to call endpoints a little more manually (in cases where you want to tell `pyblitz` to avoid using 70% of its functionality). These functions are still capable of processing `Schema` as parameters, and their signatures are nearly identical to the endpoints' methods.
+This module also provides HTTP request functions should you decide to call endpoints a little more manually (in cases where you decide you want to tell `pyblitz` to avoid using 80% of its usefulness). These functions are still capable of processing `Schema` as parameters, and their signatures are nearly identical to the endpoints' methods.
 
 ```
 import api as myApi
@@ -208,6 +211,34 @@ myApi.http.post(
     param1="you get the idea",
 )
 ```
+
+### Throttling
+`pyblitz` offers built-in functionality for request throttling. The `http` module provides a simple `throttle()` function that can be given an interval (in seconds) for how quickly requests can be sent.
+
+For example, if you want no more than 1 request per second, do this:
+
+```
+import api as myApi
+
+myApi.http.throttle(1)
+```
+
+If instead you want no more than 1 request per millisecond, do this:
+
+```
+import api as myApi
+
+myApi.http.throttle(0.001)
+```
+
+If you tried the above and now believe waiting for any amount of time is obscene and heinous, you can unset the throttle, reverting it to the default behavior (aka disabled completely), like so:
+
+```
+import api as myApi
+
+myApi.http.throttle(0)
+```
+
 
 ## [Big Back-to-top Button](#pyblitz)
 
