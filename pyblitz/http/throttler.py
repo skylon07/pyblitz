@@ -1,4 +1,5 @@
 from threading import Timer
+from typing import Union
 
 from .requests import Request
 
@@ -8,8 +9,8 @@ class RequestThrottler:
         self._requestQueue = []
         self._pendingTimer = None
 
-    def setThrottle(self, requestRateSecs: int):
-        assert type(requestRateSecs) is int
+    def setThrottle(self, requestRateSecs: Union[float, int]):
+        assert type(requestRateSecs) in (float, int)
         self._throttle = requestRateSecs
 
     def sendRequest(self, request: Request):
