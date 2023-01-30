@@ -261,7 +261,6 @@ class _EndpointWriter:
 
     def _genExpressionEndpointAndChildren(self, endpoint: Parser.Endpoint) -> str:
         nonVarChildEndpoints = list(endpoint.children)
-        # TODO: what if the child is also an expression endpoint?
         varEndpointChildren = [
             child
             for child in nonVarChildEndpoints
@@ -269,6 +268,10 @@ class _EndpointWriter:
         ]
         assert len(varEndpointChildren) == 1
         varEndpointChild = varEndpointChildren[0]
+        # TODO: what if the child is also an expression endpoint?
+        #       (probably need to add a _useVariableExpressionEndpointTemplate()
+        #       that merges the two other templates)
+        assert not self._isExpressionEndpoint(varEndpointChild), "expression endpoints cannot currently handle expression endpoint children"
         nonVarChildEndpoints.remove(varEndpointChild)
 
         varEndpointCode = self._indent(self._genVariableEndpointAndChildren(
