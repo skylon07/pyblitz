@@ -375,6 +375,7 @@ class _EndpointWriter:
                     schemaPathsMap[responseCode] = dict()
                 schemaPathsMapForCode = schemaPathsMap[responseCode]
                 schemaPathsMapForCode[jsonPathKeys] = f"<{schemaClassRefStr}>"
+            # replaces "'<schemaClassName>'" --> "schemaClassName"
             schemaInResponseStr = re.sub(r"'\<(?P<class>.*?)\>'", r"\g<class>", f"{schemaPathsMap}")
             return schemaInResponseStr
         else:
