@@ -311,10 +311,10 @@ class Parser_3_1_0(Parser):
                             self._scanResponseData(jsonKeyPath, jsonValue, jsonDict, method, responseCode)
                         self._scanOpenApiObjectLayer(tuple(), responseData, jsonDict, scanResponseDataWithContext)
 
-    def _scanOpenApiObjectLayer(self, jsonKeyPath, object, jsonDict, callbackForEachKey):
+    def _scanOpenApiObjectLayer(self, jsonKeyPath, currObject, jsonDict, callbackForEachKey):
         isRef = len(jsonKeyPath) > 0 and jsonKeyPath[-1] == "$ref"
         if isRef:
-            refPathList = object.split("/")
+            refPathList = currObject.split("/")
             refPathList_skippingHash = refPathList[1:]
             nextObject = jsonDict
             for pathKey in refPathList_skippingHash:
@@ -333,7 +333,7 @@ class Parser_3_1_0(Parser):
             else:
                 raise AssertionError("scanning api object revealed an unconsidered $ref type")
         else:
-            nextObject = object
+            nextObject = currObject
         
         if type(nextObject) in (dict, list):
             if type(nextObject) is dict:
