@@ -1,15 +1,17 @@
 import requests
 import json
 
-from ..common import Schema
-
 
 class Response:
-    def __init__(self, response: requests.Response, jsonSchemaPaths: dict):
+    def __init__(self, response: requests.Response, jsonSchemaPathsFromCodes: dict):
         self._response = response
         self._jsonDict = json.loads(response.text)
         self._transformedJsonDict = json.loads(response.text)
-        self._transformSchema(jsonSchemaPaths)
+        
+        code = self._response.status_code
+        jsonSchemaPathList = jsonSchemaPathsFromCodes.get(code, {})
+        for (pathKeyDescriptors, schemaClass) in jsonSchemaPathList:
+            self._transformSchema(pathKeyDescriptors, schemaClass)
 
     def __getitem__(self, key):
         return self._transformedJsonDict[key]
@@ -21,20 +23,66 @@ class Response:
     def transform(self, transformFn):
         return transformFn(self._jsonDict)
 
-    def _transformSchema(self, jsonSchemaPaths):
-        code = self._response.status_code
-        schemaPathsForCode = jsonSchemaPaths.get(code, {})
-        for (pathList, schemaClass) in schemaPathsForCode.items():
-            dictToModify = self._transformedJsonDict
-            validPathsList = [
-                path
-                for path in pathList
-                if path != "$ref"
-            ]
-            for pathKey in validPathsList[:-1]:
-                dictToModify = dictToModify[pathKey]
-            lastPath = validPathsList[-1]
-            try:
-                dictToModify[lastPath] = schemaClass.fromSerialized(dictToModify[lastPath])
-            except KeyError:
-                dictToModify[f'_serialize-{schemaClass.__name__}-failed'] = True
+    def _transformSchema(self, pathKeyDescriptors, schemaClass, startJsonItem = None):
+        """
+        Given a "path", a destination schema class, and optionally the json item
+        to work with, this function will inflate JSON data to actual Schema
+        instances
+
+        A "path" is defined as a list of key descriptors. A key descriptor is a
+        two-tuple of the type of access being made, and the key to use for the
+        access. The type of access can be an 'object' property access or an
+        'array' index access.
+
+        For example:
+        ```
+        # explains that response.matchingNode.id is a NodeId
+        pathKeyDescriptors = [
+            ('object', 'matchingNode'),
+            ('object', 'id'),
+        ]
+        
+        # explains that response.users is an array, where each
+        # user.contactInfo is a UserContactInfo
+        pathKeyDescriptors = [
+            ('object', 'users'),
+            ('array', slice(None)),
+            ('object', 'contactInfo'),
+        ]
+        ```
+        """
+        
+        if startJsonItem is None:
+            startJsonItem = self._transformedJsonDict
+        
+        currJsonItem = startJsonItem
+        for (descriptorIdx, (itemType, itemKey)) in enumerate(pathKeyDescriptors[:-1]):
+            if itemType == 'object':
+                currJsonItem = currJsonItem[itemKey]
+            elif itemType == 'array':
+                restOfPath = pathKeyDescriptors[descriptorIdx + 1 :]
+                for nextJsonItem in currJsonItem[itemKey]:
+                    self._transformSchema(restOfPath, schemaClass, nextJsonItem)
+                # since the call above handled the rest of the path for each
+                # nextJsonItem, we are done here
+                return
+            else:
+                raise ValueError(f"Unknown path list item type: {itemType}")
+
+            
+        (lastItemType, lastItemKey) = pathKeyDescriptors[-1]
+        if lastItemType == 'object':
+            currJsonItem[lastItemKey] = schemaClass.fromSerialized(currJsonItem[lastItemKey])
+        elif lastItemType == 'array':
+            if type(lastItemKey) is int:
+                currJsonItem[lastItemKey] = schemaClass.fromSerialized(currJsonItem[lastItemKey])
+            elif type(lastItemKey) is slice:
+                sliceStart = lastItemKey.start if lastItemKey.start is not None else 0
+                sliceEnd = lastItemKey.stop if lastItemKey.stop is not None else len(currJsonItem)
+                sliceStep = lastItemKey.step if lastItemKey.step is not None else 1
+                for schemaIdx in range(sliceStart, sliceEnd, sliceStep):
+                    currJsonItem[schemaIdx] = schemaClass.fromSerialized(currJsonItem[schemaIdx])
+            else:
+                raise KeyError(f"An array cannot be accessed by a key of type {type(lastItemKey)}")
+        else:
+            raise ValueError(f"Unknown path list item type: {itemType}")
