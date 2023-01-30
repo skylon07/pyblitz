@@ -269,7 +269,7 @@ class _EndpointWriter:
         ]
         assert len(varEndpointChildren) == 1
         varEndpointChild = varEndpointChildren[0]
-        nonVarChildEndpoints.pop(nonVarChildEndpoints.index(varEndpointChild))
+        nonVarChildEndpoints.remove(varEndpointChild)
 
         varEndpointCode = self._indent(self._genVariableEndpointAndChildren(
             varEndpointChild), 2) + self._unindentClassSep
