@@ -323,6 +323,8 @@ class Parser_3_1_0(Parser):
             if refType == "schemas":
                 nextObject = nextObject['properties']
             elif refType == "responses":
+                # TODO: what if it isn't a ref?
+                #       (breaks for GET /chats/{chat_id}/memberships)
                 nextObject = nextObject \
                     .get('content', {}) \
                     .get('application/json', {}) \
