@@ -1,15 +1,16 @@
 import requests
 import json
+from typing import Any
 
 
 class Response:
-    def __init__(self, response: requests.Response, jsonSchemaPathsFromCodes: dict):
+    def __init__(self, response: requests.Response, jsonSchemaPathsFromCodes: dict[int, list[tuple[tuple, type]]]):
         self._response = response
         self._jsonDict = json.loads(response.text)
         self._transformedJsonDict = json.loads(response.text)
         
         code = self._response.status_code
-        jsonSchemaPathList = jsonSchemaPathsFromCodes.get(code, {})
+        jsonSchemaPathList = jsonSchemaPathsFromCodes.get(code, [])
         for (pathKeyDescriptors, schemaClass) in jsonSchemaPathList:
             self._transformSchema(pathKeyDescriptors, schemaClass)
 
@@ -23,7 +24,7 @@ class Response:
     def transform(self, transformFn):
         return transformFn(self._jsonDict)
 
-    def _transformSchema(self, pathKeyDescriptors, schemaClass, startJsonItem = None):
+    def _transformSchema(self, pathKeyDescriptors: tuple[tuple[str, Any]], schemaClass: type, startJsonItem = None):
         """
         Given a "path", a destination schema class, and optionally the json item
         to work with, this function will inflate JSON data to actual Schema
