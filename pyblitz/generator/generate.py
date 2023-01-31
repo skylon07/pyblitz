@@ -274,10 +274,8 @@ class _EndpointWriter:
         assert not self._isExpressionEndpoint(varEndpointChild), "expression endpoints cannot currently handle expression endpoint children"
         nonVarChildEndpoints.remove(varEndpointChild)
 
-        varEndpointCode = self._indent(self._genVariableEndpointAndChildren(
-            varEndpointChild), 2) + self._unindentClassSep
-        varEndpointName = re.findall(
-            "class ([^()]*)(\(.*\))?:", varEndpointCode)[0][0]
+        varEndpointCode = self._indent(self._genVariableEndpointAndChildren(varEndpointChild), 2) + self._unindentClassSep
+        varEndpointName = re.findall("class ([^()]*)(\(.*\))?:", varEndpointCode)[0][0]
 
         parentRef = self._genParentsFromExprAncestorStr(endpoint)
 
