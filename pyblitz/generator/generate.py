@@ -372,9 +372,9 @@ class _EndpointWriter:
             schemaPathsMap = dict()
             for (responseCode, jsonPathKeys, schemaClassRefStr) in method.allSchemaInResponseJson():
                 if responseCode not in schemaPathsMap:
-                    schemaPathsMap[responseCode] = dict()
-                schemaPathsMapForCode = schemaPathsMap[responseCode]
-                schemaPathsMapForCode[jsonPathKeys] = f"<{schemaClassRefStr}>"
+                    schemaPathsMap[responseCode] = []
+                pathDescriptors = (jsonPathKeys, schemaClassRefStr)
+                schemaPathsMap[responseCode].append((pathDescriptors))
             # replaces "'<schemaClassName>'" --> "schemaClassName"
             schemaInResponseStr = re.sub(r"'\<(?P<class>.*?)\>'", r"\g<class>", f"{schemaPathsMap}")
             return schemaInResponseStr
