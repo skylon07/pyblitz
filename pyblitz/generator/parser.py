@@ -19,10 +19,10 @@ class Parser(ABC):
 
     Implementation classes *must* provide data by calling all applicable data sets
     in the OpenAPI JSON object using these methods:
-    - _recordServer()
-    - _recordMethod()
-    - _recordResponseSchema()
-    - _recordSchemaProperty()
+    - `_recordServer()`
+    - `_recordMethod()`
+    - `_recordResponseSchema()`
+    - `_recordSchemaProperty()`
     """
     
     def __new__(cls, *args, **kwargs):
@@ -38,12 +38,14 @@ class Parser(ABC):
         self.__servers = []
         self.__endpointsDict = dict()
         self.__schemaDict = dict()
+        self._currSpecDict = None
 
     @abstractmethod
-    def parse(self, jsonDict):
-        assert type(jsonDict) is dict
-        # also should probably assert the jsonDict['openapi'] version
-        return # None, but call _recordMethod() and all relevant on...() methods
+    def parse(self, openApiSpecDict: dict):
+        assert type(openApiSpecDict) is dict
+        self._currSpecDict = openApiSpecDict
+        # subclasses should probably assert the openApiSpecDict['openapi'] version
+        return # None, but call all relevant _record...() methods
 
     @property
     def servers(self):
@@ -81,9 +83,9 @@ class Parser(ABC):
             endpoint = childEndpoint
         endpoint.addMethod(method)
 
-    def _recordResponseSchema(self, method: 'Parser.Method', responseCodeStr, jsonPathTuple, schemaClassRefStr):
+    def _recordResponseSchema(self, method: 'Parser.Method', responseCodeStr, specKeyPathDescriptor, schemaClassRefStr):
         responseCodeInt = int(responseCodeStr)
-        method.addSchemaToResponseJson(responseCodeInt, jsonPathTuple, schemaClassRefStr)
+        method._addSchemaToResponseJson(responseCodeInt, specKeyPathDescriptor, schemaClassRefStr)
 
     def _recordSchemaProperty(self, schemaName, schemaDesc, prop):
         assert type(schemaName) is str
