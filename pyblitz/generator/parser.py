@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, Any, Union, Callable
 
 from ..common import _convertDashesToCamelCase
 
@@ -19,10 +19,10 @@ class Parser(ABC):
 
     Implementation classes *must* provide data by calling all applicable data sets
     in the OpenAPI JSON object using these methods:
-    - _recordServer()
-    - _recordMethod()
-    - _recordResponseSchema()
-    - _recordSchemaProperty()
+    - `_recordServer()`
+    - `_recordMethod()`
+    - `_recordResponseSchema()`
+    - `_recordSchemaProperty()`
     """
     
     def __new__(cls, *args, **kwargs):
@@ -38,12 +38,14 @@ class Parser(ABC):
         self.__servers = []
         self.__endpointsDict = dict()
         self.__schemaDict = dict()
+        self._currSpecDict = None
 
     @abstractmethod
-    def parse(self, jsonDict):
-        assert type(jsonDict) is dict
-        # also should probably assert the jsonDict['openapi'] version
-        return # None, but call _recordMethod() and all relevant on...() methods
+    def parse(self, openApiSpecDict: dict):
+        assert type(openApiSpecDict) is dict
+        self._currSpecDict = openApiSpecDict
+        # subclasses should probably assert the openApiSpecDict['openapi'] version
+        return # None, but call all relevant _record...() methods
 
     @property
     def servers(self):
@@ -81,9 +83,9 @@ class Parser(ABC):
             endpoint = childEndpoint
         endpoint.addMethod(method)
 
-    def _recordResponseSchema(self, method: 'Parser.Method', responseCodeStr, jsonPathTuple, schemaClassRefStr):
+    def _recordResponseSchema(self, method: 'Parser.Method', responseCodeStr: str, specKeyPathDescriptor: tuple[str, Any], schemaClassRefStr: str):
         responseCodeInt = int(responseCodeStr)
-        method.addSchemaToResponseJson(responseCodeInt, jsonPathTuple, schemaClassRefStr)
+        method._addSchemaToResponseJson(responseCodeInt, specKeyPathDescriptor, schemaClassRefStr)
 
     def _recordSchemaProperty(self, schemaName, schemaDesc, prop):
         assert type(schemaName) is str
@@ -206,7 +208,7 @@ class Parser(ABC):
 
             self._name = name
             self._desc = desc
-            self._responseSchema = dict()
+            self._responseSchemasByCode = dict()
 
         @property
         def name(self) -> str:
@@ -216,16 +218,17 @@ class Parser(ABC):
         def desc(self) -> str:
             return self._desc
 
-        def addSchemaToResponseJson(self, responseCode: int, jsonPathTuple: tuple[str], schemaClassRefStr: str):
-            if responseCode not in self._responseSchema:
-                self._responseSchema[responseCode] = dict()
-            responseJsonSchema = self._responseSchema[responseCode]
-            responseJsonSchema[jsonPathTuple] = schemaClassRefStr
+        def _addSchemaToResponseJson(self, responseCode: int, specKeyPathDescriptor: tuple[str, Any], schemaClassRefStr: str):
+            if responseCode not in self._responseSchemasByCode:
+                self._responseSchemasByCode[responseCode] = list()
+            
+            replacementDescriptor = (specKeyPathDescriptor, schemaClassRefStr)
+            self._responseSchemasByCode[responseCode].append(replacementDescriptor)
 
-        def allSchemaInResponseJson(self) -> Iterable[tuple[int, tuple[str], str]]:
-            for (responseCode, schemaPathMap) in self._responseSchema.items():
-                for (schemaPath, schemaClassRefStr) in schemaPathMap.items():
-                    yield (responseCode, schemaPath, schemaClassRefStr)
+        def allSchemaInResponseJson(self) -> Iterable[tuple[int, tuple[str, Any], str]]:
+            for (responseCode, replacementDescriptors) in self._responseSchemasByCode.items():
+                for (specKeyPathDescriptor, schemaClassRefStr) in replacementDescriptors:
+                    yield (responseCode, specKeyPathDescriptor, schemaClassRefStr)
 
 
     class Schema:
@@ -282,83 +285,117 @@ class Parser(ABC):
 
 
 class Parser_3_1_0(Parser):
-    def parse(self, jsonDict):
-        assert type(jsonDict) is dict
-        assert jsonDict['openapi'] == "3.1.0", \
+    def __init__(self):
+        super().__init__()
+        self._currSpecDict = None
+    
+    def parse(self, openApiSpecDict: dict):
+        super().parse(openApiSpecDict)
+        assert openApiSpecDict['openapi'] == "3.1.0", \
             "Parser_3_1_0 is intended to only work with version 3.1.0 specifications"
 
-        serverList = jsonDict['servers']
+        serverList = self._currSpecDict['servers']
         for (server, idx) in zip(serverList, range(len(serverList))):
             name = server['description'] or f"NO_NAME_FOUND_{idx + 1}"
             url = server['url']
             server = Parser.Server(name, url, f"Your description for '{name}' here")
             self._recordServer(server)
         
-        for (schemaName, schemaData) in jsonDict['components']['schemas'].items():
+        for (schemaName, schemaData) in self._currSpecDict['components']['schemas'].items():
             for (propName, propData) in schemaData['properties'].items():
                 prop = Parser.SchemaProperty(propName, propData.get('description', ""))
                 self._recordSchemaProperty(schemaName, schemaData.get('description', ""), prop)
 
-        for (pathUrl, path) in jsonDict['paths'].items():
+        for (pathUrl, path) in self._currSpecDict['paths'].items():
             for (method, methodData) in path.items():
                 isActuallyMethod = method != 'parameters'
                 if isActuallyMethod:
                     method = Parser.Method(method, self._genEndpointDesc(methodData))
                     self._recordMethod(pathUrl, method)
 
-                    for (responseCode, responseData) in methodData['responses'].items():
-                        def scanResponseDataWithContext(jsonKeyPath, jsonValue, jsonDict):
-                            self._scanResponseData(jsonKeyPath, jsonValue, jsonDict, method, responseCode)
-                        self._scanOpenApiObjectLayer(tuple(), responseData, jsonDict, scanResponseDataWithContext)
+                    for (responseCode, responseSpecData) in methodData['responses'].items():
+                        try:
+                            responseJsonSpecData = self._evalRefsAndGetValue(responseSpecData, ('content', 'application/json', 'schema'))
+                        except KeyError:
+                            # no content to try to parse! (Or not application/json, so still no schema...)
+                            continue # to avoid scanning for schema that can't exist
+                        self._scanForSchemaRefs(method, responseCode, responseJsonSpecData)
 
-    def _scanOpenApiObjectLayer(self, jsonKeyPath, currObject, jsonDict, callbackForEachKey):
-        isRef = len(jsonKeyPath) > 0 and jsonKeyPath[-1] == "$ref"
-        if isRef:
-            refPathList = currObject.split("/")
-            refPathList_skippingHash = refPathList[1:]
-            nextObject = jsonDict
-            for pathKey in refPathList_skippingHash:
-                nextObject = nextObject[pathKey]
-            refType = refPathList[2]
-            if refType == "schemas":
-                nextObject = nextObject['properties']
-            elif refType == "responses":
-                # TODO: what if it isn't a ref?
-                #       (breaks for GET /chats/{chat_id}/memberships)
-                nextObject = nextObject \
-                    .get('content', {}) \
-                    .get('application/json', {}) \
-                    .get('schema', {}) \
-                    .get('properties')
-                if nextObject is None:
-                    return
-            else:
-                raise AssertionError("scanning api object revealed an unconsidered $ref type")
+    def _evalRefsAndGetValue(self, currSpecObject, specKeyPath: Union[tuple[Any], str]):
+        """
+        Traverses the given spec object with a single key or a list of keys to traverse through.
+        At each traversal level, a check is made for objects referencing (with the "$ref" key)
+
+        """
+        
+        if len(specKeyPath) == 0:
+            return currSpecObject
+        
+        if type(currSpecObject) is dict:
+            lastSpecObject = None
+            lastSpecObjectWasRefObject = True # base case; benign if this isn't actually true
+            while lastSpecObjectWasRefObject:
+                lastSpecObject = currSpecObject
+                currSpecObject = self._evalRefObj(currSpecObject)
+                # this is true because _evalRefObj() short-circuits when given a non-ref object
+                lastSpecObjectWasRefObject = lastSpecObject is not currSpecObject
+        
+        currSpecObject = currSpecObject[specKeyPath[0]]
+        return self._evalRefsAndGetValue(currSpecObject, specKeyPath[1:])
+
+    def _evalRefObj(self, refObj):
+        """
+        Evaluates the value of '$ref' keys; The `refPath` parameter should
+        look like "#/components/schemas/Schema". If no '$ref' key is present,
+        the function returns the original object
+        """
+
+        if type(refObj) is dict and '$ref' in refObj:
+            refPath = refObj['$ref']
+            refPathKeys = refPath.split("/")
+            assert refPathKeys[0] == "#", "Unhandled case where $ref does not reference own spec"
+            refPathKeys_skippingHash = refPathKeys[1:]
+            return self._evalRefsAndGetValue(self._currSpecDict, refPathKeys_skippingHash)
         else:
-            nextObject = currObject
-        
-        if type(nextObject) in (dict, list):
-            if type(nextObject) is dict:
-                nextObjectIter = nextObject.items()
-            else:
-                nextObjectIter = enumerate(nextObject)
-            for (jsonKey, jsonValue) in nextObjectIter:
-                nextJsonKeyPath = jsonKeyPath + (jsonKey,)
-                callbackForEachKey(nextJsonKeyPath, jsonValue, jsonDict)
+            return refObj
 
-    def _scanResponseData(self, jsonKeyPath, jsonValue, jsonDict, method, responseCode):
-        lastJsonKey = jsonKeyPath[-1]
-        if lastJsonKey == '$ref':
-            refPathList = jsonValue.split("/")
-            refType = refPathList[2]
-            if refType == "schemas":
-                schemaClassRefStr = refPathList[-1]
-                self._recordResponseSchema(method, responseCode, jsonKeyPath, schemaClassRefStr)
-                return
+    def _scanForSchemaRefs(self, method, responseCode: str, currSpecObject, currSpecKeyPathDescriptor: tuple[tuple[str, Any]] = tuple()):
+        """
+        Given an object from the specs, this function will recursively record
+        the paths of Schemas in the responses of a specific response code from
+        a certain HTTP method call
+        """
         
-        def scanResponseDataWithContext(jsonKeyPath, jsonValue, jsonDict):
-            self._scanResponseData(jsonKeyPath, jsonValue, jsonDict, method, responseCode)
-        self._scanOpenApiObjectLayer(jsonKeyPath, jsonValue, jsonDict, scanResponseDataWithContext)
+        isRefObject = self._evalRefObj(currSpecObject) is not currSpecObject
+        if isRefObject:
+            refPath = currSpecObject['$ref']
+            refPathKeys = refPath.split("/")
+            refType = refPathKeys[2]
+            if refType == "schemas":
+                schemaClassRefStr = refPathKeys[-1]
+                self._recordResponseSchema(method, responseCode, currSpecKeyPathDescriptor, schemaClassRefStr)
+                return # to avoid parsing properties belonging to the schema
+        
+        def scanForSchemaRefsWithContext(nextSpecObject: Any, nextSpecKeyPathDescriptor: tuple[tuple[str, Any]]):
+            self._scanForSchemaRefs(method, responseCode, nextSpecObject, nextSpecKeyPathDescriptor)
+        self._scanAndEvalOpenApiObj(currSpecObject, currSpecKeyPathDescriptor, scanForSchemaRefsWithContext)
+    
+    def _scanAndEvalOpenApiObj(self, currSpecObject, currSpecKeyPathDescriptor: tuple[tuple[str, Any]], callbackForEachItem: Callable[[Any, tuple[tuple[str, Any]]], None]):
+        currSpecObject = self._evalRefObj(currSpecObject)
+
+        objectType = currSpecObject.get('type')
+        if objectType == 'object':
+            for (newSpecKey, newSpecObject) in currSpecObject['properties'].items():
+                newSpecKeyPathDescriptor = currSpecKeyPathDescriptor + (('object', newSpecKey),)
+                callbackForEachItem(newSpecObject, newSpecKeyPathDescriptor)
+        elif objectType == 'array':
+            nextSpecObject = currSpecObject['items']
+            newSpecKeyPathDescriptor = currSpecKeyPathDescriptor + (('array', slice(None)),)
+            callbackForEachItem(nextSpecObject, newSpecKeyPathDescriptor)
+        elif objectType in ('string', 'number', 'integer', 'boolean'):
+            pass # these objects can't contain Schema
+        else:
+            raise ValueError(f"Scanning OpenAPI spec revealed an object with an invalid type: {objectType}")
 
     def _genEndpointDesc(self, methodData):
         summary = methodData['summary']

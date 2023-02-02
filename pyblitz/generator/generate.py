@@ -368,13 +368,16 @@ class _EndpointWriter:
     def _genSchemaInResponseStr(self, method: Parser.Method):
         if method is not None:
             schemaPathsMap = dict()
-            for (responseCode, jsonPathKeys, schemaClassRefStr) in method.allSchemaInResponseJson():
+            for (responseCode, specKeyPathDescriptor, schemaClassRefStr) in method.allSchemaInResponseJson():
                 if responseCode not in schemaPathsMap:
-                    schemaPathsMap[responseCode] = dict()
-                schemaPathsMapForCode = schemaPathsMap[responseCode]
-                schemaPathsMapForCode[jsonPathKeys] = f"<{schemaClassRefStr}>"
+                    schemaPathsMap[responseCode] = []
+                # formatted so the string can later be identified and replaced
+                # with an actual class reference
+                formattedSchemaClassRefStr = f"<:{schemaClassRefStr}:>"
+                pathToReplaceWithSchema = (specKeyPathDescriptor, formattedSchemaClassRefStr)
+                schemaPathsMap[responseCode].append(pathToReplaceWithSchema)
             # replaces "'<schemaClassName>'" --> "schemaClassName"
-            schemaInResponseStr = re.sub(r"'\<(?P<class>.*?)\>'", r"\g<class>", f"{schemaPathsMap}")
+            schemaInResponseStr = re.sub(r"'\<:(?P<class>.*?):\>'", r"\g<class>", f"{schemaPathsMap}")
             return schemaInResponseStr
         else:
             return "{}"
