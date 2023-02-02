@@ -26,6 +26,18 @@ class Response:
     def status(self):
         return self._response.status_code
 
+    @property
+    def keys(self):
+        return self._transformedJsonDict.keys()
+
+    @property
+    def values(self):
+        return self._transformedJsonDict.values()
+
+    @property
+    def items(self):
+        return self._transformedJsonDict.items()
+
     def transform(self, transformFn):
         return transformFn(self._jsonDict)
 
