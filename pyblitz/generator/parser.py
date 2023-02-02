@@ -387,6 +387,8 @@ class Parser_3_1_0(Parser):
             nextSpecObject = currSpecObject['items']
             newSpecKeyPathDescriptor = currSpecKeyPathDescriptor + (('array', slice(None)),)
             callbackForEachItem(nextSpecObject, newSpecKeyPathDescriptor)
+        elif objectType in ('string', 'number', 'integer', 'boolean'):
+            pass # these objects can't contain Schema
         else:
             raise ValueError(f"Scanning OpenAPI spec revealed an object with an invalid type: {objectType}")
 
