@@ -2,6 +2,8 @@ import requests
 import json
 from typing import Any
 
+from ..common import Schema
+
 
 class Response:
     def __init__(self, response: requests.Response, jsonSchemaPathsFromCodes: dict[int, list[tuple[tuple, type]]]):
@@ -70,20 +72,26 @@ class Response:
             else:
                 raise ValueError(f"Unknown path list item type: {itemType}")
 
-            
         (lastItemType, lastItemKey) = pathKeyDescriptors[-1]
         if lastItemType == 'object':
-            currJsonItem[lastItemKey] = schemaClass.fromSerialized(currJsonItem[lastItemKey])
+            self._deserializeSchema(currJsonItem, lastItemKey, schemaClass)
         elif lastItemType == 'array':
             if type(lastItemKey) is int:
-                currJsonItem[lastItemKey] = schemaClass.fromSerialized(currJsonItem[lastItemKey])
+                self._deserializeSchema(currJsonItem, lastItemKey, schemaClass)
             elif type(lastItemKey) is slice:
                 sliceStart = lastItemKey.start if lastItemKey.start is not None else 0
                 sliceEnd = lastItemKey.stop if lastItemKey.stop is not None else len(currJsonItem)
                 sliceStep = lastItemKey.step if lastItemKey.step is not None else 1
                 for schemaIdx in range(sliceStart, sliceEnd, sliceStep):
-                    currJsonItem[schemaIdx] = schemaClass.fromSerialized(currJsonItem[schemaIdx])
+                    self._deserializeSchema(currJsonItem, schemaIdx, schemaClass)
             else:
-                raise KeyError(f"An array cannot be accessed by a key of type {type(lastItemKey)}")
+                raise TypeError(f"An array cannot be accessed by a key of type {type(lastItemKey)}")
         else:
             raise ValueError(f"Unknown path list item type: {itemType}")
+
+    def _deserializeSchema(self, jsonItem, keyToSchema, schemaClass: type[Schema]):
+        try:
+            jsonItem[keyToSchema] = schemaClass.fromSerialized(jsonItem[keyToSchema])
+        except KeyError as err:
+            jsonItem[keyToSchema]['__schema_deserialization_failed'] = {'cause': err}
+
