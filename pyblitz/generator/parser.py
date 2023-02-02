@@ -208,7 +208,7 @@ class Parser(ABC):
 
             self._name = name
             self._desc = desc
-            self._responseSchema = dict()
+            self._responseSchemasByCode = dict()
 
         @property
         def name(self) -> str:
@@ -219,15 +219,16 @@ class Parser(ABC):
             return self._desc
 
         def _addSchemaToResponseJson(self, responseCode: int, specKeyPathDescriptor: tuple[str, Any], schemaClassRefStr: str):
-            if responseCode not in self._responseSchema:
-                self._responseSchema[responseCode] = dict()
-            responseJsonSchema = self._responseSchema[responseCode]
-            responseJsonSchema[specKeyPathDescriptor] = schemaClassRefStr
+            if responseCode not in self._responseSchemasByCode:
+                self._responseSchemasByCode[responseCode] = list()
+            
+            replacementDescriptor = (specKeyPathDescriptor, schemaClassRefStr)
+            self._responseSchemasByCode[responseCode].append(replacementDescriptor)
 
         def allSchemaInResponseJson(self) -> Iterable[tuple[int, tuple[str, Any], str]]:
-            for (responseCode, schemaPathMap) in self._responseSchema.items():
-                for (schemaPath, schemaClassRefStr) in schemaPathMap.items():
-                    yield (responseCode, schemaPath, schemaClassRefStr)
+            for (responseCode, replacementDescriptors) in self._responseSchemasByCode.items():
+                for (specKeyPathDescriptor, schemaClassRefStr) in replacementDescriptors:
+                    yield (responseCode, specKeyPathDescriptor, schemaClassRefStr)
 
 
     class Schema:
@@ -313,7 +314,11 @@ class Parser_3_1_0(Parser):
                     self._recordMethod(pathUrl, method)
 
                     for (responseCode, responseSpecData) in methodData['responses'].items():
-                        responseJsonSpecData = self._evalRefsAndGetValue(responseSpecData, ('content', 'application/json', 'schema'))
+                        try:
+                            responseJsonSpecData = self._evalRefsAndGetValue(responseSpecData, ('content', 'application/json', 'schema'))
+                        except KeyError:
+                            # no content to try to parse! (Or not application/json, so still no schema...)
+                            continue # to avoid scanning for schema that can't exist
                         self._scanForSchemaRefs(method, responseCode, responseJsonSpecData)
 
     def _evalRefsAndGetValue(self, currSpecObject, specKeyPath: Union[tuple[Any], str]):
