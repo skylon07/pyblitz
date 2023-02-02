@@ -16,6 +16,9 @@ class Response:
         for (pathKeyDescriptors, schemaClass) in jsonSchemaPathList:
             self._transformSchema(pathKeyDescriptors, schemaClass)
 
+    def __repr__(self):
+        return f"Response{repr(self._transformedJsonDict)}"
+
     def __getitem__(self, key):
         return self._transformedJsonDict[key]
 
