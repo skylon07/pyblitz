@@ -285,6 +285,7 @@ class Parser(ABC):
 
 class Parser_3_1_0(Parser):
     def __init__(self):
+        super().__init__()
         self._currSpecDict = None
     
     def parse(self, openApiSpecDict: dict):
