@@ -8,6 +8,7 @@ from ..common import Schema
 class Response:
     def __init__(self, response: requests.Response, jsonSchemaPathsFromCodes: dict[int, list[tuple[tuple, type]]]):
         self._response = response
+        # TODO: what if it's not a json repsonse?
         self._jsonDict = json.loads(response.text)
         self._transformedJsonDict = json.loads(response.text)
         
